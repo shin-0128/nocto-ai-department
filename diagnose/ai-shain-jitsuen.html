@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<!--
+  AI社員 実演(見える化)デモ — Nocto AI Department
+  ねらい: ITが苦手な建設業の社長に「裏で動くAI」を丸見えにして、
+         "あなたは確認と承認だけ" を体感させる入口。
+  使い方: ダブルクリックでブラウザで開く。オフライン完結・通信不要。
+         「写真を投入する」を押すと、工事写真の自動仕分けを実演する。
+  注意: これはデモ(型)。仕分け結果はサンプル固定データ。実プロダクトでは
+        実写真をAIが解析する。価格・数値は仮でCONFIGに集約。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI社員の仕事を見る | Nocto</title>
+<style>
+  :root{
+    --navy:#14182A; --navy-light:#1D2238; --navy-lighter:#262C48;
+    --cyan:#8FE3FF; --cyan-dim:#4B6E7A;
+    --text:#EAF2F5; --text-dim:#9AA6B8;
+    --ok:#8FFFC1; --warn:#FFD98F; --danger:#FF8F8F;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    background:var(--navy); color:var(--text);
+    font-family:"Hiragino Mincho ProN","Hiragino Mincho Pro",serif,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased; min-height:100vh;
+  }
+  h1,h2,h3{font-family:"Hiragino Mincho ProN","Hiragino Mincho Pro",serif; font-weight:600; letter-spacing:.03em;}
+  .sans{font-family:-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;}
+  #app{max-width:1040px; margin:0 auto; padding:24px 20px 96px;}
+
+  header.top{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px;}
+  header.top .brand{font-size:22px; letter-spacing:.08em; color:var(--cyan);}
+  header.top .brand small{display:block; font-size:11px; color:var(--text-dim); letter-spacing:.15em; font-family:-apple-system,sans-serif;}
+  header.top .tolink{font-size:13px; color:var(--text-dim); text-decoration:none; border:1px solid var(--navy-lighter); border-radius:999px; padding:8px 14px; font-family:-apple-system,sans-serif;}
+  header.top .tolink:active{background:var(--navy-lighter);}
+
+  .hero{margin-bottom:24px;}
+  .hero h1{font-size:28px; margin:0 0 10px; color:#fff; line-height:1.4;}
+  .hero h1 .em{color:var(--cyan);}
+  .hero p{font-size:15px; color:var(--text-dim); margin:0; font-family:-apple-system,sans-serif; line-height:1.8;}
+
+  .worker-strip{
+    display:flex; align-items:center; gap:14px;
+    background:linear-gradient(120deg,#1B2340,#141A30);
+    border:1px solid var(--navy-lighter); border-radius:16px;
+    padding:16px 18px; margin:18px 0 24px;
+  }
+  .worker-strip .avatar{
+    width:56px; height:56px; border-radius:14px; flex-shrink:0;
+    background:radial-gradient(circle at 30% 30%,#2D3A66,#161B30);
+    border:1px solid var(--cyan-dim); display:flex; align-items:center; justify-content:center;
+  }
+  .worker-strip .who{font-family:-apple-system,sans-serif;}
+  .worker-strip .who .nm{font-size:16px; color:#fff; font-weight:700;}
+  .worker-strip .who .rl{font-size:12px; color:var(--cyan);}
+  .worker-strip .who .dt{font-size:12px; color:var(--text-dim); margin-top:3px;}
+
+  .stage{background:var(--navy-light); border:1px solid var(--navy-lighter); border-radius:18px; padding:26px 24px; margin-bottom:20px;}
+  .stage h2{font-size:20px; margin:0 0 6px; color:#fff;}
+  .stage .sub{color:var(--text-dim); font-size:13px; margin:0 0 20px; font-family:-apple-system,sans-serif; line-height:1.7;}
+
+  /* 写真タイル */
+  .photo-grid{display:grid; grid-template-columns:repeat(6,1fr); gap:10px;}
+  @media(max-width:760px){ .photo-grid{grid-template-columns:repeat(4,1fr);} }
+  @media(max-width:480px){ .photo-grid{grid-template-columns:repeat(3,1fr);} }
+  .ph{
+    position:relative; aspect-ratio:4/3; border-radius:10px; overflow:hidden;
+    border:1px solid var(--navy-lighter); background:#0F1220;
+    display:flex; align-items:flex-end; font-family:-apple-system,sans-serif;
+    transition:transform .3s, box-shadow .3s, opacity .3s;
+  }
+  .ph .sky{position:absolute; inset:0;}
+  .ph .tagbar{
+    position:relative; width:100%; padding:4px 6px; font-size:10px;
+    background:linear-gradient(0deg,rgba(5,7,15,.92),rgba(5,7,15,0));
+    color:#fff; line-height:1.3; z-index:2; opacity:0; transition:opacity .3s;
+  }
+  .ph .tagbar .k{color:var(--cyan); font-weight:700;}
+  .ph .tagbar .m{color:var(--text-dim); font-size:9px;}
+  .ph.tagged .tagbar{opacity:1;}
+  .ph .scan{
+    position:absolute; left:0; right:0; height:2px; top:0; z-index:3;
+    background:linear-gradient(90deg,transparent,var(--cyan),transparent); opacity:0;
+  }
+  .ph.scanning .scan{opacity:1; animation:scan 1.1s linear infinite;}
+  @keyframes scan{0%{top:0;}100%{top:100%;}}
+  .ph .conf{
+    position:absolute; top:5px; right:5px; z-index:3; font-size:9px; font-weight:700;
+    padding:2px 6px; border-radius:999px; opacity:0; transition:opacity .3s;
+  }
+  .ph.tagged .conf{opacity:1;}
+  .conf.hi{background:rgba(143,255,193,.18); color:var(--ok); border:1px solid rgba(143,255,193,.4);}
+  .conf.lo{background:rgba(255,217,143,.18); color:var(--warn); border:1px solid rgba(255,217,143,.5);}
+  .ph.need{box-shadow:0 0 0 2px var(--warn);}
+
+  /* 見える化ログ(裏で動くもの) */
+  .brain{
+    margin-top:22px; background:#0F1220; border:1px solid var(--navy-lighter);
+    border-radius:14px; padding:16px 18px; font-family:-apple-system,sans-serif;
+  }
+  .brain .bh{display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-dim); letter-spacing:.08em; margin-bottom:12px;}
+  .brain .dotlive{width:9px; height:9px; border-radius:50%; background:var(--cyan); box-shadow:0 0 0 0 rgba(143,227,255,.6); animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(143,227,255,.5);}70%{box-shadow:0 0 0 8px rgba(143,227,255,0);}100%{box-shadow:0 0 0 0 rgba(143,227,255,0);}}
+  .steps{display:flex; flex-direction:column; gap:2px;}
+  .stp{display:flex; align-items:center; gap:12px; padding:9px 6px; border-radius:8px; opacity:.4; transition:opacity .3s, background .3s;}
+  .stp.active{opacity:1; background:rgba(143,227,255,.06);}
+  .stp.done{opacity:1;}
+  .stp .ic{width:26px; height:26px; border-radius:8px; flex-shrink:0; display:flex; align-items:center; justify-content:center; border:1px solid var(--navy-lighter); background:var(--navy-light); font-size:13px;}
+  .stp.done .ic{background:rgba(143,255,193,.15); border-color:rgba(143,255,193,.4); color:var(--ok);}
+  .stp.active .ic{background:rgba(143,227,255,.15); border-color:var(--cyan); color:var(--cyan);}
+  .stp .lbl{font-size:14px; color:var(--text);}
+  .stp .cnt{margin-left:auto; font-size:12px; color:var(--text-dim); font-variant-numeric:tabular-nums;}
+  .stp .bar{height:4px; background:var(--navy-lighter); border-radius:3px; overflow:hidden; width:120px; margin-left:auto;}
+  .stp .bar > i{display:block; height:100%; width:0; background:var(--cyan); transition:width .2s;}
+  .livemsg{margin-top:12px; font-size:12px; color:var(--cyan); min-height:18px; font-family:-apple-system,sans-serif;}
+
+  /* 台帳(工種フォルダ) */
+  .ledger{display:flex; flex-direction:column; gap:14px;}
+  .folder{background:#0F1220; border:1px solid var(--navy-lighter); border-radius:12px; padding:14px 16px;}
+  .folder .fh{display:flex; align-items:center; gap:10px; margin-bottom:12px; font-family:-apple-system,sans-serif;}
+  .folder .fh .kname{font-size:15px; color:var(--cyan); font-weight:700;}
+  .folder .fh .fcount{font-size:12px; color:var(--text-dim);}
+  .folder .fh .chk{margin-left:auto; font-size:12px; color:var(--ok);}
+  .folder .fgrid{display:grid; grid-template-columns:repeat(8,1fr); gap:8px;}
+  .rthumb{aspect-ratio:4/3; border-radius:6px; border:1px solid var(--navy-lighter); overflow:hidden;}
+  @media(max-width:760px){ .folder .fgrid{grid-template-columns:repeat(5,1fr);} }
+  @media(max-width:480px){ .folder .fgrid{grid-template-columns:repeat(4,1fr);} }
+
+  /* 要確認カード */
+  .review{background:rgba(255,217,143,.06); border:1px solid rgba(255,217,143,.35); border-radius:12px; padding:16px 18px; margin-top:18px; font-family:-apple-system,sans-serif;}
+  .review h3{color:var(--warn); font-size:15px; margin:0 0 4px; font-family:-apple-system,sans-serif;}
+  .review .rsub{font-size:12px; color:var(--text-dim); margin:0 0 14px;}
+  .review-item{display:flex; align-items:center; gap:14px; padding:10px 0; border-top:1px solid var(--navy-lighter);}
+  .review-item .rthumb{width:64px; height:48px; aspect-ratio:auto; border-radius:8px; flex-shrink:0;}
+  .review-item .rbody{flex:1; min-width:0;}
+  .review-item .rbody .rq{font-size:13px; color:var(--text);}
+  .review-item .rbody .rguess{font-size:12px; color:var(--warn); margin-top:2px;}
+  .review-item .rpick{display:flex; gap:6px; flex-wrap:wrap;}
+  .review-item .rpick button{font-size:12px; padding:8px 12px; min-height:40px; border-radius:8px; border:1px solid var(--navy-lighter); background:var(--navy-lighter); color:var(--text); font-family:-apple-system,sans-serif; cursor:pointer;}
+  .review-item .rpick button.sel{border-color:var(--cyan); background:#232B4A; color:var(--cyan);}
+  .review-item.resolved{opacity:.55;}
+
+  /* 効果サマリー */
+  .impact{display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px; margin-bottom:8px;}
+  @media(max-width:640px){ .impact{grid-template-columns:1fr;} }
+  .impact .cell{background:linear-gradient(160deg,#1B2340,#0F1220); border:1px solid var(--cyan-dim); border-radius:14px; padding:18px 16px; text-align:center; font-family:-apple-system,sans-serif;}
+  .impact .cell .lab{font-size:12px; color:var(--text-dim); margin-bottom:8px;}
+  .impact .cell .val{font-size:30px; color:var(--cyan); font-weight:800; line-height:1;}
+  .impact .cell .val small{font-size:14px; margin-left:3px;}
+  .impact .cell.human .val{color:var(--danger);}
+  .impact .cell.you .val{color:var(--ok);}
+
+  .human-line{text-align:center; margin:26px 0 6px;}
+  .human-line .big{font-size:22px; color:#fff; font-family:-apple-system,sans-serif; font-weight:700;}
+  .human-line .big .em{color:var(--cyan);}
+  .human-line .small{font-size:13px; color:var(--text-dim); font-family:-apple-system,sans-serif; margin-top:8px;}
+
+  /* ボタン */
+  .btn{border:none; border-radius:12px; font-size:17px; font-weight:700; font-family:-apple-system,sans-serif; cursor:pointer; min-height:58px; padding:0 28px;}
+  .btn-primary{background:var(--cyan); color:#0B0E19;}
+  .btn-primary:active{background:#6FCBEA;}
+  .btn-ghost{background:transparent; border:1px solid var(--cyan); color:var(--cyan);}
+  .btn-block{width:100%;}
+  .center{text-align:center;}
+  .mt16{margin-top:16px;} .mt24{margin-top:24px;}
+  .hidden{display:none !important;}
+
+  .cta{background:linear-gradient(120deg,#1B2340,#141A30); border:1px solid var(--cyan-dim); border-radius:18px; padding:26px 24px; text-align:center;}
+  .cta h2{color:#fff; font-size:20px; margin:0 0 8px;}
+  .cta p{color:var(--text-dim); font-size:14px; font-family:-apple-system,sans-serif; margin:0 0 18px; line-height:1.8;}
+  .cta .roles{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin-bottom:20px;}
+  .cta .roles span{font-size:12px; color:var(--cyan); border:1px solid var(--cyan-dim); border-radius:999px; padding:6px 14px; font-family:-apple-system,sans-serif;}
+  .cta a.gobtn{display:inline-block; text-decoration:none;}
+
+  .footnote{font-size:11px; color:var(--text-dim); font-family:-apple-system,sans-serif; text-align:center; margin-top:24px; line-height:1.7;}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top">
+    <div class="brand">NOCTO<small>AI社員 実演</small></div>
+    <a class="tolink sans" href="ai-agent-diagnosis.html">診断ツールへ →</a>
+  </header>
+
+  <div class="hero">
+    <h1>ITは、<span class="em">苦手なままでいい。</span><br>あなたの仕事は「確認して、承認するだけ」。</h1>
+    <p class="sans">下のAI社員が、裏で何をしているかを<b style="color:#fff;">全部その場で見せます</b>。<br>まず「工事写真の仕分け」を実際にやらせてみてください。</p>
+  </div>
+
+  <div class="worker-strip">
+    <div class="avatar">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#8FE3FF" stroke-width="1.6"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+    </div>
+    <div class="who">
+      <div class="nm">事務のジロー <span style="color:var(--text-dim); font-weight:400; font-size:12px;">(AI社員・事務担当)</span></div>
+      <div class="rl">24時間勤務／文句を言わない／辞めない</div>
+      <div class="dt">得意: 工事写真の整理・見積・日報・請求・電話番</div>
+    </div>
+  </div>
+
+  <!-- Stage 0: 投入待機 -->
+  <div class="stage" id="stage0">
+    <h2>① 現場の写真を、そのまま放り込む</h2>
+    <p class="sub">現場でスマホで撮った写真を、フォルダ分けせず<b style="color:#fff;">ぐちゃっと</b>渡すだけ。整理はジローがやります。<br>(このデモではサンプルの現場写真12枚を使います)</p>
+    <div class="photo-grid" id="pileGrid"></div>
+    <div class="center mt24">
+      <button class="btn btn-primary" id="startBtn">写真を投入する（サンプル12枚）</button>
+    </div>
+  </div>
+
+  <!-- Stage 1: 処理中(見える化) -->
+  <div class="stage hidden" id="stage1">
+    <h2>② ジローが仕分け中 <span style="font-size:13px; color:var(--text-dim); font-family:-apple-system,sans-serif;">— 裏で何をしているか、丸見えです</span></h2>
+    <p class="sub">人が触るところはゼロ。AIが今この瞬間やっていることを、下に実況します。</p>
+    <div class="photo-grid" id="workGrid"></div>
+    <div class="brain">
+      <div class="bh"><span class="dotlive"></span>AIの作業ログ（リアルタイム）</div>
+      <div class="steps" id="steps"></div>
+      <div class="livemsg" id="liveMsg"></div>
+    </div>
+  </div>
+
+  <!-- Stage 2: 結果 + 承認 -->
+  <div class="stage hidden" id="stage2">
+    <h2>③ 工種ごとに、写真台帳が完成</h2>
+    <p class="sub">ジローが自動で工種を判定し、黒板の日付・測点まで読み取って振り分けました。<br>あなたは中身を<b style="color:#fff;">確認して承認するだけ</b>です。</p>
+    <div class="ledger" id="ledger"></div>
+
+    <div class="review" id="reviewBox">
+      <h3>要確認 — 2件だけ、あなたの判断をください</h3>
+      <p class="rsub">ジローが「自信がない」と正直に申告した写真です。AIは分からない所を隠しません。正しい工種をタップしてください。</p>
+      <div id="reviewList"></div>
+    </div>
+
+    <div class="human-line">
+      <div class="big">あなたがやったのは、<span class="em">タップ2回だけ。</span></div>
+      <div class="small">120枚を手で仕分け・台帳貼り付けすると約3時間。ジローは42秒で終えました。</div>
+    </div>
+    <button class="btn btn-primary btn-block mt16" id="approveBtn">この写真台帳を承認する</button>
+  </div>
+
+  <!-- Stage 3: 完了 + 効果 + CTA -->
+  <div class="stage hidden" id="stage3">
+    <h2>④ 承認完了 — 台帳が出来上がりました</h2>
+    <p class="sub">これが毎日の現場ぶんだけ、勝手に片付いていきます。あなたは夜に事務所へ戻らなくていい。</p>
+    <div class="impact">
+      <div class="cell human"><div class="lab">手作業なら（1現場120枚）</div><div class="val">約3<small>時間</small></div></div>
+      <div class="cell"><div class="lab">ジローの処理</div><div class="val">42<small>秒</small></div></div>
+      <div class="cell you"><div class="lab">あなたの手間</div><div class="val">約2<small>分</small></div></div>
+    </div>
+    <p class="footnote">月8現場なら手作業<b style="color:var(--danger);">約24時間/月</b> → あなたの確認は<b style="color:var(--ok);">約16分/月</b>。年間で約280時間が浮く計算(仮試算)。</p>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta hidden" id="cta">
+    <h2>他の"面倒"も、同じように「承認だけ」で回ります</h2>
+    <p class="sans">見積・積算も、夜の日報も、電話番も、請求も。全部このやり方です。<br>——採らない。育てない。辞めない。それでも事務が一人増える。</p>
+    <div class="roles"><span>見積・積算</span><span>日報・書類</span><span>電話番</span><span>請求・インボイス</span><span>集客</span></div>
+    <a class="gobtn" href="ai-agent-diagnosis.html"><button class="btn btn-primary">自社だと何ヶ月で元が取れる？ 3分で診断する →</button></a>
+    <div class="center mt16"><button class="btn btn-ghost" id="replayBtn">もう一度、実演を見る</button></div>
+  </div>
+
+  <div class="footnote">
+    ※これは実演デモです。仕分け結果はサンプルの固定データを使用しています。実サービスでは実際の現場写真をAIが解析します。<br>
+    Nocto, Inc. ／ 価格・数値は仮です。
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =========================================================
+   CONFIG — 実演で見せる数値。ここを変えれば全画面に反映。
+   ========================================================= */
+const CONFIG = {
+  photosPerSite: 120,     // 1現場の写真枚数(仮)
+  handMinutes: 180,       // 手作業の分(1現場・仮)
+  aiSeconds: 42,          // AI処理秒(演出・仮)
+  yourMinutes: 2,         // あなたの確認分(仮)
+  sitesPerMonth: 8,       // 月の現場数(仮)
+};
+
+/* 工種の見た目(空の色でそれっぽく) */
+const KIND_STYLE = {
+  '基礎':        'linear-gradient(160deg,#6b7280,#3f4654)',
+  '配筋':        'linear-gradient(160deg,#8a6d3b,#4a3b22)',
+  '型枠':        'linear-gradient(160deg,#7a6a52,#40382b)',
+  'コンクリート': 'linear-gradient(160deg,#9aa0a6,#5b6067)',
+  '外構・舗装':   'linear-gradient(160deg,#5f7a53,#33402d)',
+  '全景・進捗':   'linear-gradient(160deg,#4b6b86,#26384a)',
+};
+
+/* サンプル12枚(正解ラベル・黒板情報・確信度) */
+const SAMPLE = [
+  { id:1,  kind:'基礎',        date:'6/12', point:'A-1通り', conf:98 },
+  { id:2,  kind:'全景・進捗',   date:'6/12', point:'南面',    conf:96 },
+  { id:3,  kind:'配筋',        date:'6/14', point:'2F床',    conf:95 },
+  { id:4,  kind:'配筋',        date:'6/14', point:'2F床',    conf:71, need:true, guess:'型枠', alt:['配筋','型枠','コンクリート'] },
+  { id:5,  kind:'型枠',        date:'6/15', point:'1F壁',    conf:93 },
+  { id:6,  kind:'コンクリート', date:'6/16', point:'1F床',    conf:97 },
+  { id:7,  kind:'基礎',        date:'6/12', point:'B-2通り', conf:94 },
+  { id:8,  kind:'外構・舗装',   date:'6/20', point:'駐車場',  conf:92 },
+  { id:9,  kind:'全景・進捗',   date:'6/16', point:'東面',    conf:90 },
+  { id:10, kind:'型枠',        date:'6/15', point:'1F壁',    conf:89 },
+  { id:11, kind:'コンクリート', date:'6/16', point:'2F床',    conf:68, need:true, guess:'コンクリート', alt:['型枠','コンクリート','全景・進捗'] },
+  { id:12, kind:'外構・舗装',   date:'6/20', point:'アプローチ', conf:91 },
+];
+const KIND_ORDER = ['基礎','配筋','型枠','コンクリート','外構・舗装','全景・進捗'];
+
+const fmtMin = (m)=> m>=60 ? (m/60).toFixed(m%60?1:0) : String(m);
+
+/* ---- 写真タイル生成 ---- */
+function photoTile(p, {tagged=false}={}){
+  const sky = KIND_STYLE[p.kind] || '#333';
+  const confClass = p.conf>=85 ? 'hi' : 'lo';
+  return `
+    <div class="ph ${tagged?'tagged':''} ${p.need&&tagged?'need':''}" data-id="${p.id}">
+      <div class="sky" style="background:${sky}"></div>
+      <div class="scan"></div>
+      <div class="conf ${confClass}">${p.conf}%</div>
+      <div class="tagbar"><span class="k">${p.kind}</span><br><span class="m">${p.date}／${p.point}</span></div>
+    </div>`;
+}
+function miniThumb(p){
+  const sky = KIND_STYLE[p.kind] || '#333';
+  return `<div class="rthumb"><div style="width:100%;height:100%;background:${sky}"></div></div>`;
+}
+
+/* ---- Stage 0: 山積みプレビュー ---- */
+function renderPile(){
+  document.getElementById('pileGrid').innerHTML = SAMPLE.map(p=>`
+    <div class="ph" data-id="${p.id}"><div class="sky" style="background:${KIND_STYLE[p.kind]}"></div></div>
+  `).join('');
+}
+
+/* ---- Stage 1: 処理の見える化 ---- */
+const STEPS = [
+  { ic:'1', lbl:'写真を読み込み',            key:'load'  },
+  { ic:'2', lbl:'何の工事か判定(工種)',      key:'kind'  },
+  { ic:'3', lbl:'黒板・日付・測点を読み取り', key:'ocr'   },
+  { ic:'4', lbl:'工種ごとに台帳へ振り分け',   key:'sort'  },
+];
+function renderSteps(){
+  document.getElementById('steps').innerHTML = STEPS.map(s=>`
+    <div class="stp" data-key="${s.key}">
+      <div class="ic">${s.ic}</div>
+      <div class="lbl">${s.lbl}</div>
+      <div class="bar"><i></i></div>
+    </div>`).join('');
+}
+
+const LIVE = {
+  kind: id=>{ const p=SAMPLE.find(x=>x.id===id); return `写真#${id} … これは「${p.kind}」だな（確信度${p.conf}%）`; },
+  ocr:  id=>{ const p=SAMPLE.find(x=>x.id===id); return `写真#${id} … 黒板を読取:「${p.date} ${p.point}」`; },
+  sort: id=>{ const p=SAMPLE.find(x=>x.id===id); return `写真#${id} → 「${p.kind}」フォルダへ`; },
+};
+
+function setStep(key, state){
+  document.querySelectorAll('.stp').forEach(el=>{
+    if(el.dataset.key===key){ el.classList.remove('active','done'); el.classList.add(state); }
+  });
+}
+function stepBar(key, pct){
+  const el = document.querySelector(`.stp[data-key="${key}"] .bar > i`);
+  if(el) el.style.width = pct+'%';
+}
+function say(msg){ document.getElementById('liveMsg').textContent = msg; }
+
+let TIMERS = [];
+function after(ms, fn){ TIMERS.push(setTimeout(fn, ms)); }
+function clearTimers(){ TIMERS.forEach(clearTimeout); TIMERS = []; }
+
+function runProcessing(){
+  const workGrid = document.getElementById('workGrid');
+  workGrid.innerHTML = SAMPLE.map(p=>photoTile(p)).join(''); // untagged
+  renderSteps();
+  say('');
+
+  const N = SAMPLE.length;
+  const per = 260; // ms/枚
+  // Step load
+  setStep('load','active');
+  SAMPLE.forEach((p,i)=> after(per*i*0.3, ()=>{ stepBar('load', Math.round((i+1)/N*100)); }));
+  after(per*N*0.3+150, ()=>{ setStep('load','done'); stepBar('load',100);
+    // Step kind — scan each tile
+    setStep('kind','active');
+    SAMPLE.forEach((p,i)=>{
+      after(per*i, ()=>{
+        const tile = document.querySelector(`#workGrid .ph[data-id="${p.id}"]`);
+        if(tile){ tile.classList.add('scanning'); }
+        say(LIVE.kind(p.id));
+        stepBar('kind', Math.round((i+1)/N*100));
+      });
+      after(per*i+per*0.7, ()=>{
+        const tile = document.querySelector(`#workGrid .ph[data-id="${p.id}"]`);
+        if(tile){ tile.classList.remove('scanning'); tile.classList.add('tagged'); }
+      });
+    });
+    after(per*N+150, ()=>{ setStep('kind','done');
+      // Step OCR (quick sweep)
+      setStep('ocr','active');
+      SAMPLE.forEach((p,i)=> after(90*i, ()=>{ say(LIVE.ocr(p.id)); stepBar('ocr', Math.round((i+1)/N*100)); }));
+      after(90*N+120, ()=>{ setStep('ocr','done');
+        // Step sort
+        setStep('sort','active');
+        SAMPLE.forEach((p,i)=> after(80*i, ()=>{ say(LIVE.sort(p.id)); stepBar('sort', Math.round((i+1)/N*100)); }));
+        after(80*N+200, ()=>{ setStep('sort','done');
+          say('仕分け完了。自信のない2件だけ、確認をお願いします。');
+          after(600, showResult);
+        });
+      });
+    });
+  });
+}
+
+/* ---- Stage 2: 台帳 + 要確認 ---- */
+function showResult(){
+  // 台帳(工種フォルダ) — 確信度が高い(needでない)ものを並べる。needは後で解決したら入る
+  const led = document.getElementById('ledger');
+  led.innerHTML = KIND_ORDER.map(k=>{
+    const ps = SAMPLE.filter(p=>p.kind===k && !p.need);
+    if(!ps.length && !SAMPLE.some(p=>p.kind===k)) return '';
+    return `
+      <div class="folder" data-kind="${k}">
+        <div class="fh"><span class="kname">${k}</span><span class="fcount" data-fcount="${k}">${ps.length}枚</span><span class="chk">✓ 確認済</span></div>
+        <div class="fgrid" data-fgrid="${k}">${ps.map(miniThumb).join('')}</div>
+      </div>`;
+  }).join('');
+
+  // 要確認リスト
+  const needs = SAMPLE.filter(p=>p.need);
+  document.getElementById('reviewList').innerHTML = needs.map(p=>`
+    <div class="review-item" data-id="${p.id}">
+      ${miniThumb(p)}
+      <div class="rbody">
+        <div class="rq">写真#${p.id}（${p.date}／${p.point}）</div>
+        <div class="rguess">ジローの予想: 「${p.guess}」…だけど自信は${p.conf}%。合ってる？</div>
+      </div>
+      <div class="rpick">
+        ${p.alt.map(a=>`<button data-id="${p.id}" data-kind="${a}">${a}</button>`).join('')}
+      </div>
+    </div>`).join('');
+
+  transition('stage1','stage2');
+  bindReview();
+  updateApprove();
+}
+
+let resolved = {};
+function bindReview(){
+  resolved = {};
+  document.querySelectorAll('#reviewList .rpick button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = Number(btn.dataset.id);
+      const kind = btn.dataset.kind;
+      const item = document.querySelector(`.review-item[data-id="${id}"]`);
+      item.querySelectorAll('.rpick button').forEach(b=> b.classList.toggle('sel', b===btn));
+      resolved[id] = kind;
+      // 台帳に反映
+      const p = SAMPLE.find(x=>x.id===id);
+      p.kind = kind;
+      const fg = document.querySelector(`[data-fgrid="${kind}"]`);
+      if(fg && !fg.querySelector(`[data-added="${id}"]`)){
+        const el = document.createElement('div'); el.innerHTML = miniThumb(p);
+        const node = el.firstElementChild; node.setAttribute('data-added', id); fg.appendChild(node);
+        const cnt = document.querySelector(`[data-fcount="${kind}"]`);
+        if(cnt) cnt.textContent = (fg.children.length)+'枚';
+      }
+      item.classList.add('resolved');
+      updateApprove();
+    });
+  });
+}
+function updateApprove(){
+  const needs = SAMPLE.filter(p=>p.need).length;
+  const done = Object.keys(resolved).length;
+  const btn = document.getElementById('approveBtn');
+  const left = needs - done;
+  if(left>0){ btn.textContent = `あと${left}件、工種をタップしてください`; btn.style.opacity=.6; }
+  else { btn.textContent = 'この写真台帳を承認する'; btn.style.opacity=1; }
+}
+
+/* ---- ステージ遷移 ---- */
+function transition(fromId, toId){
+  document.getElementById(fromId).classList.add('hidden');
+  const to = document.getElementById(toId); to.classList.remove('hidden');
+  to.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+/* ---- イベント ---- */
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  transition('stage0','stage1');
+  after(250, runProcessing);
+});
+document.getElementById('approveBtn').addEventListener('click', ()=>{
+  const needs = SAMPLE.filter(p=>p.need).length;
+  if(Object.keys(resolved).length < needs){
+    const first = document.querySelector('.review-item:not(.resolved)');
+    if(first) first.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  document.getElementById('stage3').classList.remove('hidden');
+  document.getElementById('cta').classList.remove('hidden');
+  transition('stage2','stage3');
+});
+document.getElementById('replayBtn').addEventListener('click', ()=>{
+  clearTimers();
+  // reset sample kinds for need-items
+  SAMPLE.find(p=>p.id===4).kind='配筋';
+  SAMPLE.find(p=>p.id===11).kind='コンクリート';
+  ['stage1','stage2','stage3','cta'].forEach(id=>document.getElementById(id).classList.add('hidden'));
+  document.getElementById('stage0').classList.remove('hidden');
+  renderPile();
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+
+/* init */
+renderPile();
+</script>
+</body>
+</html>

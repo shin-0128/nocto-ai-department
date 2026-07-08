@@ -1,0 +1,74 @@
+{
+  "_purpose": "Nocto AI Team operational policy reference. Read by agents and humans for shared context. NOT a Claude Code config file — see .claude/settings.json for the harness-readable permission rules.",
+  "_source_of_truth": "CLAUDE.md sections 4 (PERMISSIONS), 7 (QUALITY), 10 (ERROR & RECOVERY). This JSON is a structured mirror of the charter for programmatic access by agents.",
+  "version": "1.0",
+  "project": "nocto-agents",
+  "owner": "Shin",
+  "permissions": {
+    "auto_approve": {
+      "file_operations": {
+        "read": true,
+        "write": true,
+        "edit": true,
+        "delete": false
+      },
+      "shell_commands": {
+        "git_commit": true,
+        "git_branch": true,
+        "git_push_feature_branch": true,
+        "git_push_main": false,
+        "git_force_push": false,
+        "npm_install": true,
+        "pip_install": true,
+        "test_execution": true,
+        "build": true
+      },
+      "external_apis": {
+        "read_operations": true,
+        "draft_creation": true,
+        "send_email": false,
+        "post_social_media": false,
+        "payment_processing": false,
+        "production_deploy": false
+      }
+    },
+    "stop_and_ask": [
+      "金銭が動く操作",
+      "公開・公表系（SNS投稿、商品リリース、LP公開）",
+      "契約・法的判断",
+      "不可逆な操作（本番DB削除、本番デプロイ、main直push）",
+      "重要な戦略判断"
+    ],
+    "absolute_block": [
+      "アダルトコンテンツの生成・編集・運用支援",
+      "Shin/Susumu-kun 以外への直接発信",
+      "法令違反の可能性がある行為",
+      "他人の認証情報の使用"
+    ]
+  },
+  "safety_limits": {
+    "max_same_error_retries": 3,
+    "max_same_file_edits": 5,
+    "max_task_api_cost_usd": 5,
+    "max_task_time_ratio": 2.0,
+    "daily_api_budget_usd": 50
+  },
+  "agents_directory": ".claude/agents",
+  "memory": {
+    "long_term": "Notion",
+    "mid_term": "repository_docs",
+    "short_term": "Upstash_Redis_or_in_context"
+  },
+  "language": {
+    "code": "en",
+    "commit_messages": "en",
+    "docs_technical": "ja",
+    "shin_communication": "ja",
+    "error_logs": "en"
+  },
+  "boundaries": {
+    "adult_content": "completely_excluded",
+    "fx_live_trading": "manual_only",
+    "external_communication": "shin_approval_required"
+  }
+}

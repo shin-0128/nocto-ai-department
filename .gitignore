@@ -1,0 +1,50 @@
+# --- runtime logs (keep dir structure, ignore contents)
+logs/*.log
+!logs/.gitkeep
+
+# --- secrets / env
+.env
+.env.*
+*.key
+*.pem
+*.pfx
+credentials*.json
+
+# --- Claude Code (per-machine local overrides)
+.claude/settings.local.json
+
+# --- Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.next/
+.nuxt/
+out/
+
+# --- IDE / editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# --- OS
+.DS_Store
+Thumbs.db
+desktop.ini

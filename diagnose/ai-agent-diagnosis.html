@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<!--
+  AIエージェント導入診断ツール (MVP) — Nocto AI Department
+  使い方: このファイルをダブルクリックしてブラウザ(iPad Safari可)で開くだけ。オフライン完結、通信不要。
+  操作: Step1〜4のウィザードをタップで進み、最後に「印刷」でA4サマリーを出力する。
+  注意: リロードすると入力内容は消える(実演用途のため保存機能なし)。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AIエージェント導入診断 | Nocto</title>
+<style>
+  :root{
+    --navy: #14182A;
+    --navy-light: #1D2238;
+    --navy-lighter: #262C48;
+    --cyan: #8FE3FF;
+    --cyan-dim: #4B6E7A;
+    --text: #EAF2F5;
+    --text-dim: #9AA6B8;
+    --danger: #FF8F8F;
+    --ok: #8FFFC1;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0; height:100%;}
+  body{
+    background: var(--navy);
+    color: var(--text);
+    font-family: "Hiragino Mincho ProN", "Hiragino Mincho Pro", serif, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    touch-action: manipulation;
+    min-height:100vh;
+  }
+  h1,h2,h3{
+    font-family: "Hiragino Mincho ProN", "Hiragino Mincho Pro", serif;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  #app{
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 20px 80px;
+  }
+  header.top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom: 20px;
+  }
+  header.top .brand{
+    font-size: 22px;
+    letter-spacing: 0.08em;
+    color: var(--cyan);
+  }
+  header.top .brand small{
+    display:block;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    font-family: -apple-system, sans-serif;
+  }
+  #gearBtn{
+    width: 44px; height:44px;
+    border-radius: 50%;
+    border: 1px solid var(--navy-lighter);
+    background: var(--navy-light);
+    color: var(--text-dim);
+    font-size: 18px;
+    cursor:pointer;
+  }
+  #gearBtn:active{ background: var(--navy-lighter); }
+
+  /* ステップインジケーター */
+  .step-indicator{
+    display:flex;
+    gap:8px;
+    margin-bottom: 28px;
+  }
+  .step-indicator .dot{
+    flex:1;
+    height: 6px;
+    border-radius: 4px;
+    background: var(--navy-lighter);
+    transition: background .2s;
+  }
+  .step-indicator .dot.active{ background: var(--cyan); }
+  .step-indicator .dot.done{ background: var(--cyan-dim); }
+
+  .panel{
+    background: var(--navy-light);
+    border: 1px solid var(--navy-lighter);
+    border-radius: 16px;
+    padding: 28px 24px;
+    margin-bottom: 20px;
+  }
+  .panel h2{
+    font-size: 22px;
+    margin: 0 0 6px;
+    color: #fff;
+  }
+  .panel .sub{
+    color: var(--text-dim);
+    font-size: 14px;
+    margin: 0 0 22px;
+    font-family: -apple-system, sans-serif;
+  }
+
+  /* 選択肢ボタン (Step1) */
+  .choice-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 560px){ .choice-grid{ grid-template-columns: 1fr; } }
+  .choice-btn{
+    min-height: 88px;
+    background: var(--navy-lighter);
+    border: 2px solid transparent;
+    border-radius: 14px;
+    color: var(--text);
+    font-size: 18px;
+    font-family: -apple-system, sans-serif;
+    font-weight: 600;
+    padding: 16px;
+    cursor: pointer;
+    text-align: left;
+    display:flex;
+    align-items:center;
+    transition: border-color .15s, background .15s;
+  }
+  .choice-btn:active{ background: #303756; }
+  .choice-btn.selected{
+    border-color: var(--cyan);
+    background: #232B4A;
+    color: var(--cyan);
+  }
+
+  /* 業種タブ */
+  .tab-row{
+    display:flex;
+    gap:10px;
+    margin-bottom: 22px;
+    flex-wrap:wrap;
+  }
+  .tab-btn{
+    flex:1;
+    min-width: 120px;
+    min-height: 52px;
+    background: var(--navy-lighter);
+    border: 2px solid transparent;
+    border-radius: 10px;
+    color: var(--text-dim);
+    font-size: 15px;
+    font-family: -apple-system, sans-serif;
+    font-weight: 600;
+    cursor:pointer;
+  }
+  .tab-btn.active{
+    border-color: var(--cyan);
+    color: var(--cyan);
+    background: #232B4A;
+  }
+
+  /* 業務カード (Step2) */
+  .task-card{
+    background: var(--navy-lighter);
+    border: 2px solid transparent;
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 14px;
+    cursor: pointer;
+  }
+  .task-card.selected{
+    border-color: var(--cyan);
+    background: #202850;
+  }
+  .task-card .row1{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+  }
+  .task-card .name{
+    font-size: 17px;
+    font-weight: 600;
+    font-family: -apple-system, sans-serif;
+  }
+  .task-card .tags{
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+    font-family: -apple-system, sans-serif;
+  }
+  .task-card .evidence{
+    font-size: 11px;
+    color: var(--ok);
+    margin-top: 6px;
+    line-height: 1.5;
+    font-family: -apple-system, sans-serif;
+    opacity: 0.85;
+  }
+  .checkbox{
+    width: 30px; height:30px;
+    border-radius: 8px;
+    border: 2px solid var(--text-dim);
+    flex-shrink:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size: 18px;
+    color: transparent;
+  }
+  .task-card.selected .checkbox{
+    border-color: var(--cyan);
+    background: var(--cyan);
+    color: var(--navy);
+  }
+  .hours-input-row{
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #333c60;
+    display:flex;
+    align-items:center;
+    gap: 14px;
+    font-family: -apple-system, sans-serif;
+  }
+  .hours-input-row label{
+    font-size: 13px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .hours-input-row input[type="range"]{
+    flex:1;
+    accent-color: var(--cyan);
+    height: 36px;
+  }
+  .hours-input-row .hours-num{
+    width: 64px;
+    padding: 8px 6px;
+    font-size: 16px;
+    text-align:center;
+    background: var(--navy);
+    border: 1px solid var(--navy-lighter);
+    border-radius: 8px;
+    color: var(--text);
+  }
+
+  /* 職種カード (Step3) */
+  .role-card{
+    background: var(--navy-lighter);
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 16px;
+    border-left: 4px solid var(--cyan);
+  }
+  .role-card .role-name{
+    font-size: 19px;
+    color: var(--cyan);
+    margin: 0 0 4px;
+  }
+  .role-card .role-job{
+    font-size: 14px;
+    color: var(--text);
+    margin: 0 0 10px;
+    font-family: -apple-system, sans-serif;
+    line-height: 1.6;
+  }
+  .badge-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin-bottom: 10px;
+  }
+  .badge{
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #0F1220;
+    color: var(--ok);
+    font-family: -apple-system, sans-serif;
+    border: 1px solid #2c3350;
+  }
+  .role-card .covers{
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: -apple-system, sans-serif;
+  }
+  .role-card .fee-line{
+    margin-top: 10px;
+    font-size: 14px;
+    font-family: -apple-system, sans-serif;
+    color: var(--text);
+  }
+  .role-card .fee-line b{ color: #fff; }
+  .role-card.top-pick{
+    border-left-color: #FFD98F;
+  }
+  .role-card.top-pick .pick-tag{
+    display:inline-block;
+    font-size: 11px;
+    color: #14182A;
+    background: #FFD98F;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+    font-family: -apple-system, sans-serif;
+    font-weight: 700;
+  }
+
+  /* Step4 サマリー */
+  .doc-head{
+    display:flex;
+    align-items:flex-end;
+    justify-content:space-between;
+    gap: 16px;
+    flex-wrap:wrap;
+    margin-bottom: 22px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--navy-lighter);
+    font-family: -apple-system, sans-serif;
+  }
+  .doc-fields{ display:flex; flex-direction:column; gap: 8px; }
+  .doc-field{ display:flex; align-items:flex-end; gap: 8px; font-size: 14px; color: var(--text); }
+  .doc-field .doc-label{ color: var(--text-dim); font-size: 12px; white-space:nowrap; }
+  .doc-field .doc-blank{ display:inline-block; min-width: 180px; border-bottom: 1px solid var(--text-dim); }
+  .doc-field .doc-unit{ color: var(--text-dim); font-size: 12px; white-space:nowrap; }
+  .doc-issuer{ text-align:right; font-size: 14px; color: var(--cyan); font-weight:700; }
+  .doc-issuer small{ display:block; font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; font-weight:400; }
+  .summary-block{ margin-bottom: 24px; }
+  .summary-block h3{
+    font-size: 15px;
+    color: var(--text-dim);
+    font-family: -apple-system, sans-serif;
+    margin: 0 0 10px;
+    letter-spacing: 0.05em;
+  }
+  table.compare{
+    width:100%;
+    border-collapse: collapse;
+    font-family: -apple-system, sans-serif;
+  }
+  table.compare th, table.compare td{
+    padding: 12px 10px;
+    text-align: left;
+    border-bottom: 1px solid var(--navy-lighter);
+    font-size: 15px;
+  }
+  table.compare th{ color: var(--text-dim); font-weight:600; font-size:12px; }
+  table.compare td.num{ text-align:right; font-variant-numeric: tabular-nums; }
+  table.compare tr.total td{ font-weight:700; color:#fff; font-size:17px; }
+
+  .recovery-box{
+    text-align:center;
+    padding: 30px 10px;
+    background: linear-gradient(160deg, #1B2340, #0F1220);
+    border-radius: 16px;
+    border: 1px solid var(--cyan-dim);
+  }
+  .recovery-box .label{
+    font-size: 13px;
+    color: var(--text-dim);
+    font-family: -apple-system, sans-serif;
+    margin-bottom: 8px;
+  }
+  .recovery-box .value{
+    font-size: 48px;
+    color: var(--cyan);
+    font-weight: 700;
+    line-height: 1;
+  }
+  .recovery-box .value span{ font-size: 22px; margin-left: 4px; }
+  .recovery-box.warn{
+    background: linear-gradient(160deg, #2A1B22, #1A0F14);
+    border-color: var(--danger);
+  }
+  .recovery-box.warn .warn-msg{
+    font-size: 15px;
+    color: var(--danger);
+    font-family: -apple-system, sans-serif;
+    line-height: 1.7;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .map-row{
+    display:flex;
+    align-items:flex-start;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--navy-lighter);
+    font-family: -apple-system, sans-serif;
+  }
+  .map-row .role-tag{
+    flex-shrink:0;
+    min-width: 140px;
+    font-size: 14px;
+    color: var(--cyan);
+    font-weight:700;
+  }
+  .map-row .task-list{
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height:1.7;
+  }
+
+  /* ボタン類 */
+  .btn-row{
+    display:flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+  .btn{
+    flex:1;
+    min-height: 56px;
+    border-radius: 12px;
+    border: none;
+    font-size: 17px;
+    font-weight: 700;
+    font-family: -apple-system, sans-serif;
+    cursor: pointer;
+  }
+  .btn-primary{
+    background: var(--cyan);
+    color: #0B0E19;
+  }
+  .btn-primary:active{ background: #6FCBEA; }
+  .btn-primary:disabled{
+    background: #3A4160;
+    color: var(--text-dim);
+    cursor: not-allowed;
+  }
+  .btn-secondary{
+    background: var(--navy-lighter);
+    color: var(--text);
+    flex: 0 0 120px;
+  }
+  .btn-secondary:active{ background: #303756; }
+  .btn-print{
+    background: transparent;
+    border: 1px solid var(--cyan);
+    color: var(--cyan);
+  }
+
+  .hint{
+    font-size: 12px;
+    color: var(--text-dim);
+    font-family: -apple-system, sans-serif;
+    margin-top: 10px;
+  }
+
+  /* 設定パネル */
+  #settingsOverlay{
+    display:none;
+    position: fixed;
+    inset:0;
+    background: rgba(5,7,15,0.85);
+    z-index: 100;
+    overflow-y:auto;
+    padding: 20px;
+  }
+  #settingsOverlay.open{ display:block; }
+  .settings-panel{
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--navy-light);
+    border: 1px solid var(--navy-lighter);
+    border-radius: 16px;
+    padding: 24px;
+    font-family: -apple-system, sans-serif;
+  }
+  .settings-panel h2{ color:#fff; font-size:18px; }
+  .settings-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--navy-lighter);
+    font-size: 14px;
+  }
+  .settings-row input{
+    width: 130px;
+    padding: 8px;
+    background: var(--navy);
+    border: 1px solid var(--navy-lighter);
+    border-radius: 8px;
+    color: var(--text);
+    text-align:right;
+    font-size:14px;
+  }
+  .settings-group-title{
+    color: var(--cyan);
+    font-size: 13px;
+    margin: 18px 0 4px;
+    letter-spacing: 0.05em;
+  }
+
+  /* 印刷用 — A4縦1枚に収める */
+  @media print{
+    html,body{ background:#fff; color:#000; height:auto; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    #app > header.top{ margin-bottom: 10px; }
+    #app > header.top .brand{ color:#000; }
+    #gearBtn, .step-indicator, .btn-row, .no-print{ display:none !important; }
+    #app{ max-width:none; padding:0; margin:0; }
+    .panel{ border:none; background:#fff; padding:0; margin:0; page-break-inside:avoid; }
+    .panel:not(#step4){ display:none !important; }
+    #step4 h2{ font-size: 18px; margin: 0 0 8px; }
+    .summary-block{ margin-bottom: 12px; }
+    .summary-block h3{ color:#333; margin-bottom: 6px; }
+    table.compare th, table.compare td{ padding: 6px 8px; border-color:#ccc; color:#000; font-size: 13px; }
+    table.compare tr.total td{ color:#000; font-size: 15px; }
+    .doc-head{ border-color:#999; margin-bottom: 12px; padding-bottom: 10px; }
+    .doc-head .doc-field, .doc-head .doc-label, .doc-head .doc-unit{ color:#000; }
+    .doc-head .doc-blank{ border-color:#000; }
+    .doc-issuer{ color:#000; }
+    .doc-issuer small{ color:#333; }
+    .recovery-box{ background:#fff; border:2px solid #000; padding: 14px 10px; }
+    .recovery-box .value{ color:#000; font-size: 34px; }
+    .recovery-box .value span{ font-size: 16px; }
+    .recovery-box .label{ color:#333; }
+    .recovery-box.warn{ border-color:#000; }
+    .recovery-box.warn .warn-msg{ color:#000; }
+    .map-row{ border-color:#ccc; padding: 8px 0; }
+    .map-row .role-tag{ color:#000; }
+    .map-row .task-list{ color:#333; }
+    .badge{ color:#000; background:#eee; border-color:#999; }
+    @page{ size: A4 portrait; margin: 12mm; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header class="top">
+    <div class="brand">NOCTO<small>AI エージェント導入診断</small></div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <a class="no-print" href="ai-shain-jitsuen.html" style="font-size:13px; color:var(--text-dim); text-decoration:none; border:1px solid var(--navy-lighter); border-radius:999px; padding:8px 14px; font-family:-apple-system,sans-serif;">AIの仕事を見る(実演)</a>
+      <button id="gearBtn" class="no-print" title="設定(面談中は非表示推奨)">⚙</button>
+    </div>
+  </header>
+
+  <div class="step-indicator no-print" id="stepIndicator"></div>
+
+  <div id="stepContainer"></div>
+</div>
+
+<!-- 設定パネル(管理者向け・面談中は隠す想定) -->
+<div id="settingsOverlay" class="no-print">
+  <div class="settings-panel">
+    <h2>簡易設定(仮価格の調整)</h2>
+    <div class="settings-group-title">時給</div>
+    <div class="settings-row">
+      <span>デフォルト時給(円/時)</span>
+      <input type="number" id="cfgWage" step="100" inputmode="numeric">
+    </div>
+    <div class="settings-group-title">職種別 月額 / 導入手数料(円)</div>
+    <div id="cfgRoles"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="cfgCloseBtn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+/* =========================================================
+   CONFIG — 仮価格・Shin確認待ち。ここを書き換えるだけで全価格が変わる。
+   ========================================================= */
+const CONFIG = {
+  hourlyWageDefault: 2000, // 仮価格・Shin確認待ち
+  roles: {
+    clerical:    { name: '事務エージェント',   monthlyFee: 30000,  setupFee: 300000  }, // 仮価格・Shin確認待ち
+    reception:   { name: '接客エージェント',   monthlyFee: 50000,  setupFee: 500000  }, // 仮価格・Shin確認待ち
+    analytics:   { name: '分析エージェント',   monthlyFee: 50000,  setupFee: 500000  }, // 仮価格・Shin確認待ち
+    ordering:    { name: '発注エージェント',   monthlyFee: 30000,  setupFee: 300000  }, // 仮価格・Shin確認待ち
+    sns:         { name: 'SNS運用エージェント', monthlyFee: 80000,  setupFee: 700000  }, // 仮価格・Shin確認待ち
+    acquisition: { name: '集客エージェント',   monthlyFee: 100000, setupFee: 1000000 }, // 仮価格・Shin確認待ち
+  }
+};
+
+/* 職種カタログ(仕事内容の説明文) */
+const ROLE_CATALOG = {
+  acquisition: { job: '見込み客を24時間検知 → 企業分析・スコアリング → 個別文面作成 → フォーム/FAX/AIテレアポで接触 → 返信率・アポ率・成約率を計測' },
+  reception:   { job: '問い合わせに24時間応答し、リード(見込み客)として引き渡す' },
+  clerical:    { job: '見積・請求・工事写真の整理・日報など、社長や現場監督の"机仕事"を丸ごと肩代わりする(職人の腕・現場判断は対象外)' },
+  analytics:   { job: '売上データを常時監視し、取りこぼしを検知して月次で報告する' },
+  ordering:    { job: '毎晩の在庫を確認 → 発注要否を判断 → 承認フローを経て発注書を送信する' },
+  sns:         { job: '投稿企画を選定 → 投稿 → 数字を計測 → 次の企画にフィードバックする' },
+};
+
+/* =========================================================
+   業種プリセット(業務棚卸しチェック用データ)
+   axis: 業務改善 / 売上 / 集客
+   autonomy: 自走化適性タグ
+   ========================================================= */
+const PRESETS = {
+  construction: {
+    label: '建築・建設(総合)',
+    tasks: [
+      { id:'c1', name:'工事写真の整理・写真台帳づくり',   role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:32, evidence:'現場監督は写真整理だけで年約384時間(月32h)を消費 ※KENTEM調べ' },
+      { id:'c2', name:'見積・積算(拾い出し)',            role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],               defaultHours:20, evidence:'積算を1週間→1〜2日に短縮した事例あり。見積が遅いと受注・粗利に直結' },
+      { id:'c3', name:'日報・報告書・安全書類の作成',      role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                   defaultHours:16, evidence:'音声で喋る→AI清書で1件15分→3分の事例。夜の書類仕事を消す' },
+      { id:'c4', name:'電話番・問い合わせの一次対応',      role:'reception',   axis:'集客',     autonomy:['24時間性に価値','人がやると漏れる'],   defaultHours:15, evidence:'現場を止める電話・言った言わないの主因。初回返信8h→1.5hの事例' },
+      { id:'c5', name:'請求・支払い・インボイス処理',      role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],               defaultHours:12, evidence:'AI-OCRで支払伝票処理を1週間→1日にした事例(従業員36名の建設会社)' },
+      { id:'c6', name:'職人・協力会社の手配(段取り)',      role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                   defaultHours:10 },
+      { id:'c7', name:'集客・元請け脱却(直請けの営業)',    role:'acquisition', axis:'集客',     autonomy:['24時間性に価値'],                       defaultHours:12 },
+      { id:'c8', name:'施工事例・SNSの発信',             role:'sns',         axis:'集客',     autonomy:['判断がパターン化できる'],               defaultHours:8  },
+    ]
+  },
+  reform: {
+    label: 'リフォーム・改修',
+    tasks: [
+      { id:'rf1', name:'現地調査メモ→見積・積算',        role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:18, evidence:'見積が遅いと相見積もりで負ける。積算1週間→1〜2日の事例' },
+      { id:'rf2', name:'問い合わせ・電話の一次対応(24h)', role:'reception',   axis:'集客',     autonomy:['24時間性に価値','人がやると漏れる'], defaultHours:18, evidence:'初回返信8h→1.5h・概算提示1.8日→0.4日・予約率1.8倍の事例' },
+      { id:'rf3', name:'見積書・提案書づくり',           role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:12 },
+      { id:'rf4', name:'施工前後の写真・記録の整理',      role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:12 },
+      { id:'rf5', name:'請求・支払い・インボイス処理',    role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:10, evidence:'AI-OCRで支払伝票処理を1週間→1日にした事例' },
+      { id:'rf6', name:'集客・Web/チラシ反響の対応',      role:'acquisition', axis:'集客',     autonomy:['24時間性に価値'],                    defaultHours:15 },
+      { id:'rf7', name:'施工事例・口コミ/SNSの発信',      role:'sns',         axis:'集客',     autonomy:['判断がパターン化できる'],             defaultHours:10, evidence:'リフォームは事例と口コミが受注に直結' },
+      { id:'rf8', name:'アフターフォロー・点検案内',      role:'reception',   axis:'集客',     autonomy:['人がやると漏れる'],                 defaultHours:6  },
+    ]
+  },
+  setsubi: {
+    label: '設備工事(電気・水道・空調)',
+    tasks: [
+      { id:'st1', name:'人工代・常用の請求・集計',        role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:14, evidence:'一人親方・常用が絡む請求は手作業だと抜け漏れやすい' },
+      { id:'st2', name:'見積・材料の拾い出し',           role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:16 },
+      { id:'st3', name:'職人・応援の手配(段取り)',        role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:12 },
+      { id:'st4', name:'資材・部材の発注',               role:'ordering',    axis:'業務改善', autonomy:['判断がパターン化できる','24時間性に価値'], defaultHours:8, evidence:'発注要否の判断→発注書送信までを自動化' },
+      { id:'st5', name:'電話番・現場からの問い合わせ',    role:'reception',   axis:'集客',     autonomy:['24時間性に価値','人がやると漏れる'], defaultHours:14, evidence:'現場を止める電話の一次受けをAIが担当' },
+      { id:'st6', name:'作業報告・写真記録の整理',        role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:12 },
+      { id:'st7', name:'集客・元請け脱却(直請け)',        role:'acquisition', axis:'集客',     autonomy:['24時間性に価値'],                    defaultHours:10 },
+    ]
+  },
+  kantoku: {
+    label: '現場監督・施工管理',
+    tasks: [
+      { id:'kt1', name:'工事写真の整理・写真台帳づくり',   role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:32, evidence:'現場監督は写真整理だけで年約384時間(月32h)を消費 ※KENTEM調べ' },
+      { id:'kt2', name:'日報・施工計画書・報告書',        role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:18, evidence:'施工計画書の作成時間を約85%削減した事例/日報15分→3分' },
+      { id:'kt3', name:'安全書類・グリーンファイル',      role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:12, evidence:'定型書類はAIが下書き→人は確認だけ' },
+      { id:'kt4', name:'出来形・協議資料の作成',          role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:12 },
+      { id:'kt5', name:'職人・協力会社の手配(段取り)',     role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:10 },
+      { id:'kt6', name:'電話・チャットの一次対応',        role:'reception',   axis:'集客',     autonomy:['24時間性に価値','人がやると漏れる'], defaultHours:12, evidence:'"言った言わない"の記録も自動で残す' },
+      { id:'kt7', name:'資材・機材の発注',               role:'ordering',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:6  },
+    ]
+  },
+  doboku: {
+    label: '土木・外構',
+    tasks: [
+      { id:'db1', name:'工事写真・出来形の整理(電子納品)', role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:28, evidence:'公共案件の写真台帳・電子納品は膨大。年384時間級の内業' },
+      { id:'db2', name:'積算・数量の拾い出し',           role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:18, evidence:'積算を1週間→1〜2日に短縮した事例あり' },
+      { id:'db3', name:'日報・施工管理書類',             role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:14 },
+      { id:'db4', name:'請求・支払い・インボイス処理',    role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:10 },
+      { id:'db5', name:'重機・資材の手配/発注',          role:'ordering',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:8  },
+      { id:'db6', name:'電話番・問い合わせ対応',          role:'reception',   axis:'集客',     autonomy:['24時間性に価値'],                    defaultHours:10 },
+      { id:'db7', name:'公共入札・案件情報の収集',        role:'acquisition', axis:'集客',     autonomy:['24時間性に価値'],                    defaultHours:10, evidence:'入札情報の巡回・整理を24時間自動で' },
+    ]
+  },
+  restaurant: {
+    label: '飲食',
+    tasks: [
+      { id:'r1', name:'発注',           role:'ordering',  axis:'業務改善', autonomy:['判断がパターン化できる','24時間性に価値'], defaultHours:10 },
+      { id:'r2', name:'売上分析',       role:'analytics', axis:'売上',     autonomy:['人がやると漏れる'],                       defaultHours:8  },
+      { id:'r3', name:'予約対応',       role:'reception', axis:'集客',     autonomy:['24時間性に価値'],                         defaultHours:15 },
+      { id:'r4', name:'SNS発信',        role:'sns',       axis:'集客',     autonomy:['判断がパターン化できる'],                 defaultHours:8  },
+      { id:'r5', name:'シフト・事務',   role:'clerical',  axis:'業務改善', autonomy:['人がやると漏れる'],                       defaultHours:10 },
+    ]
+  },
+  general: {
+    label: '汎用',
+    tasks: [
+      { id:'g1', name:'問い合わせ対応',     role:'reception',   axis:'集客',     autonomy:['24時間性に価値'],           defaultHours:15 },
+      { id:'g2', name:'営業リスト作成',     role:'acquisition', axis:'集客',     autonomy:['判断がパターン化できる'],   defaultHours:10 },
+      { id:'g3', name:'データ入力・事務',   role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],   defaultHours:15 },
+      { id:'g4', name:'SNS運用',           role:'sns',         axis:'集客',     autonomy:['判断がパターン化できる'],   defaultHours:8  },
+      { id:'g5', name:'レポート作成',       role:'analytics',   axis:'売上',     autonomy:['人がやると漏れる'],         defaultHours:8  },
+    ]
+  }
+};
+
+/* Step1: 核心質問。選択によって Step4 での職種の優先表示順が変わる */
+const CORE_QUESTIONS = [
+  { id:'inquiries', label:'新規の問い合わせ数', priority:['acquisition','reception','sns','analytics','ordering','clerical'] },
+  { id:'revenue',   label:'売上・粗利',         priority:['analytics','acquisition','ordering','reception','sns','clerical'] },
+  { id:'labor',     label:'人手・作業時間',     priority:['clerical','ordering','reception','sns','analytics','acquisition'] },
+  { id:'errors',    label:'漏れ・ミス',         priority:['clerical','analytics','reception','ordering','sns','acquisition'] },
+];
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const state = {
+  step: 1,
+  coreQuestion: null,
+  industry: 'construction',
+  selectedTasks: {}, // taskId -> hours
+  hourlyWage: CONFIG.hourlyWageDefault,
+};
+
+const fmtYen = (n) => '¥' + Math.round(n).toLocaleString('ja-JP');
+const fmtNum = (n) => Math.round(n).toLocaleString('ja-JP');
+
+/* =========================================================
+   レンダリング
+   ========================================================= */
+function renderIndicator(){
+  const el = document.getElementById('stepIndicator');
+  el.innerHTML = '';
+  for(let i=1;i<=4;i++){
+    const d = document.createElement('div');
+    d.className = 'dot' + (i===state.step ? ' active' : (i<state.step ? ' done' : ''));
+    el.appendChild(d);
+  }
+}
+
+function render(){
+  renderIndicator();
+  const c = document.getElementById('stepContainer');
+  if(state.step===1) c.innerHTML = renderStep1();
+  else if(state.step===2) c.innerHTML = renderStep2();
+  else if(state.step===3) c.innerHTML = renderStep3();
+  else c.innerHTML = renderStep4();
+  attachHandlers();
+}
+
+/* ---- Step1: 核心質問 ---- */
+function renderStep1(){
+  const choices = CORE_QUESTIONS.map(q => `
+    <button class="choice-btn ${state.coreQuestion===q.id?'selected':''}" data-core="${q.id}">${q.label}</button>
+  `).join('');
+  return `
+    <div class="panel" id="step1">
+      <h2>いま一番困っている数字はどれですか？</h2>
+      <p class="sub">最も課題感の強いものを1つ選んでください。提案の優先順位に反映します。</p>
+      <div class="choice-grid">${choices}</div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="nextBtn" ${state.coreQuestion? '' : 'disabled'}>次へ</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---- Step2: 業務棚卸しチェック ---- */
+function renderStep2(){
+  const tabs = Object.keys(PRESETS).map(key => `
+    <button class="tab-btn ${state.industry===key?'active':''}" data-industry="${key}">${PRESETS[key].label}</button>
+  `).join('');
+
+  const tasks = PRESETS[state.industry].tasks.map(t => {
+    const selected = state.selectedTasks.hasOwnProperty(t.id);
+    const hours = selected ? state.selectedTasks[t.id] : t.defaultHours;
+    return `
+      <div class="task-card ${selected?'selected':''}" data-task="${t.id}">
+        <div class="row1">
+          <div>
+            <div class="name">${t.name}</div>
+            <div class="tags">${t.axis} ／ ${t.autonomy.join('・')}</div>
+            ${t.evidence ? `<div class="evidence">${t.evidence}</div>` : ''}
+          </div>
+          <div class="checkbox">${selected ? '✓' : ''}</div>
+        </div>
+        ${selected ? `
+        <div class="hours-input-row" data-stop="1">
+          <label>月あたり作業時間</label>
+          <input type="range" min="1" max="160" value="${hours}" data-hours-range="${t.id}">
+          <input type="number" min="0" inputmode="numeric" pattern="[0-9]*" class="hours-num" value="${hours}" data-hours-num="${t.id}">
+          <label>時間</label>
+        </div>` : ''}
+      </div>
+    `;
+  }).join('');
+
+  const count = Object.keys(state.selectedTasks).length;
+
+  return `
+    <div class="panel" id="step2">
+      <h2>業務棚卸しチェック</h2>
+      <p class="sub">当てはまる業務をタップして選択し、月あたりの作業時間を入力してください。</p>
+      <div class="tab-row">${tabs}</div>
+      ${tasks}
+      <div class="hint">${count} 件選択中</div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="backBtn">戻る</button>
+        <button class="btn btn-primary" id="nextBtn" ${count>0?'':'disabled'}>次へ</button>
+      </div>
+    </div>
+  `;
+}
+
+/* 選択タスクからマッピングされる職種一覧を取得(優先順位並び替え済み) */
+function getMappedRoles(){
+  const roleSet = new Set();
+  Object.keys(state.selectedTasks).forEach(taskId => {
+    const task = findTaskById(taskId);
+    if(task) roleSet.add(task.role);
+  });
+  const cq = CORE_QUESTIONS.find(q => q.id === state.coreQuestion);
+  const priority = cq ? cq.priority : Object.keys(CONFIG.roles);
+  return Array.from(roleSet).sort((a,b) => priority.indexOf(a) - priority.indexOf(b));
+}
+
+function findTaskById(taskId){
+  for(const key of Object.keys(PRESETS)){
+    const found = PRESETS[key].tasks.find(t => t.id === taskId);
+    if(found) return found;
+  }
+  return null;
+}
+
+/* ---- Step3: AI社員の当て込み ---- */
+function renderStep3(){
+  const roles = getMappedRoles();
+  const cq = CORE_QUESTIONS.find(q => q.id === state.coreQuestion);
+  const topRole = cq ? cq.priority.find(r => roles.includes(r)) : null;
+
+  const cards = roles.map(roleKey => {
+    const cfg = CONFIG.roles[roleKey];
+    const cat = ROLE_CATALOG[roleKey];
+    const coveredTasks = Object.keys(state.selectedTasks)
+      .map(findTaskById)
+      .filter(t => t && t.role === roleKey)
+      .map(t => t.name);
+    const isTop = roleKey === topRole;
+    return `
+      <div class="role-card ${isTop?'top-pick':''}">
+        ${isTop ? '<div class="pick-tag">最優先でオススメ</div>' : ''}
+        <h3 class="role-name">${cfg.name}</h3>
+        <p class="role-job">${cat.job}</p>
+        <div class="badge-row">
+          <span class="badge">24時間働く</span>
+          <span class="badge">毎月の勤務報告あり</span>
+        </div>
+        <div class="covers">担当業務: ${coveredTasks.join('、')}</div>
+        <div class="fee-line">月額 <b>${fmtYen(cfg.monthlyFee)}</b> ／ 導入手数料 <b>${fmtYen(cfg.setupFee)}</b>(仮)</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="panel" id="step3">
+      <h2>配備すべき AI 社員</h2>
+      <p class="sub">選択された業務から、雇うべき AI 社員(エージェント)を自動で当て込みました。採らない・育てない・辞めない"机仕事のもう一人"です(職人の腕・現場判断は置き換えません)。</p>
+      ${cards || '<p class="sub">業務が選択されていません。戻って選択してください。</p>'}
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="backBtn">戻る</button>
+        <button class="btn btn-primary" id="nextBtn" ${roles.length>0?'':'disabled'}>試算する</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ---- Step4: 試算サマリー ---- */
+function renderStep4(){
+  const roles = getMappedRoles();
+
+  let totalHumanCost = 0;
+  Object.keys(state.selectedTasks).forEach(taskId => {
+    totalHumanCost += state.selectedTasks[taskId] * state.hourlyWage;
+  });
+
+  let monthlyAgentTotal = 0;
+  let setupFeeTotal = 0;
+  roles.forEach(r => {
+    monthlyAgentTotal += CONFIG.roles[r].monthlyFee;
+    setupFeeTotal += CONFIG.roles[r].setupFee;
+  });
+
+  const monthlySavings = totalHumanCost - monthlyAgentTotal;
+  const savingsPositive = monthlySavings > 0;
+  let recoveryText = '―';
+  if(savingsPositive){
+    const months = setupFeeTotal / monthlySavings;
+    recoveryText = (Math.ceil(months*10)/10).toLocaleString('ja-JP');
+  }
+
+  const recoveryBlock = savingsPositive ? `
+        <div class="recovery-box">
+          <div class="label">導入手数料の回収期間</div>
+          <div class="value">${recoveryText}<span>ヶ月</span></div>
+        </div>` : `
+        <div class="recovery-box warn">
+          <div class="label">回収期間の試算</div>
+          <div class="warn-msg">AI社員の月額(${fmtYen(monthlyAgentTotal)})が、削減できる人的コスト(${fmtYen(totalHumanCost)})を上回っています。<br>配備する業務を増やすか、対象業務の作業時間を見直してください。</div>
+        </div>`;
+
+  const mapRows = roles.map(r => {
+    const cfg = CONFIG.roles[r];
+    const tasks = Object.keys(state.selectedTasks)
+      .map(findTaskById)
+      .filter(t => t && t.role === r)
+      .map(t => t.name);
+    return `
+      <div class="map-row">
+        <div class="role-tag">${cfg.name}</div>
+        <div class="task-list">${tasks.join(' / ')}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="panel" id="step4">
+      <h2>導入試算サマリー</h2>
+      <p class="sub no-print">このページをそのまま印刷すると、A4サマリー(助成金申請の根拠資料にも利用可)になります。</p>
+
+      <div class="doc-head">
+        <div class="doc-fields">
+          <div class="doc-field"><span class="doc-label">御社名</span><span class="doc-blank">&nbsp;</span><span class="doc-unit">御中</span></div>
+          <div class="doc-field"><span class="doc-label">作成日</span><span class="doc-blank">&nbsp;</span><span class="doc-unit">年　　月　　日</span></div>
+        </div>
+        <div class="doc-issuer">作成：Nocto, Inc.<small>AI エージェント導入診断</small></div>
+      </div>
+
+      <div class="summary-block">
+        <h3>人件費比較(月あたり)</h3>
+        <table class="compare">
+          <tr><th>項目</th><th class="num">金額</th></tr>
+          <tr><td>現在の人的コスト(時給${fmtYen(state.hourlyWage)}換算)</td><td class="num">${fmtYen(totalHumanCost)}</td></tr>
+          <tr><td>AI社員 月額合計</td><td class="num">${fmtYen(monthlyAgentTotal)}</td></tr>
+          <tr class="total"><td>月間削減額</td><td class="num">${monthlySavings>=0 ? fmtYen(monthlySavings) : '△'+fmtYen(Math.abs(monthlySavings))}</td></tr>
+        </table>
+      </div>
+
+      <div class="summary-block">
+        ${recoveryBlock}
+      </div>
+
+      <div class="summary-block">
+        <h3>AI社員 配置マップ</h3>
+        ${mapRows || '<p class="sub">配置なし</p>'}
+      </div>
+
+      <div class="summary-block">
+        <h3>月額・導入費用の見積もり</h3>
+        <table class="compare">
+          <tr><th>項目</th><th class="num">金額</th></tr>
+          <tr><td>月額合計(${roles.length}名)</td><td class="num">${fmtYen(monthlyAgentTotal)}</td></tr>
+          <tr class="total"><td>導入手数料 合計(初回のみ・仮)</td><td class="num">${fmtYen(setupFeeTotal)}</td></tr>
+        </table>
+      </div>
+
+      <div class="btn-row no-print">
+        <button class="btn btn-secondary" id="backBtn">戻る</button>
+        <button class="btn btn-print" id="printBtn">この画面を印刷する</button>
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
+   イベント処理
+   ========================================================= */
+function attachHandlers(){
+  const backBtn = document.getElementById('backBtn');
+  if(backBtn) backBtn.addEventListener('click', () => { state.step--; render(); });
+
+  const nextBtn = document.getElementById('nextBtn');
+  if(nextBtn) nextBtn.addEventListener('click', () => { state.step++; render(); });
+
+  const printBtn = document.getElementById('printBtn');
+  if(printBtn) printBtn.addEventListener('click', () => window.print());
+
+  // Step1: 核心質問選択
+  document.querySelectorAll('[data-core]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.coreQuestion = btn.getAttribute('data-core');
+      render();
+    });
+  });
+
+  // Step2: 業種タブ切替
+  document.querySelectorAll('[data-industry]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.industry = btn.getAttribute('data-industry');
+      render();
+    });
+  });
+
+  // Step2: 業務カードのタップで選択トグル(時間入力エリアのタップは除外)
+  document.querySelectorAll('.task-card').forEach(card => {
+    card.addEventListener('click', (e) => {
+      if(e.target.closest('[data-stop]')) return; // スライダー等の操作は無視
+      const id = card.getAttribute('data-task');
+      if(state.selectedTasks.hasOwnProperty(id)){
+        delete state.selectedTasks[id];
+      } else {
+        const task = findTaskById(id);
+        state.selectedTasks[id] = task.defaultHours;
+      }
+      render();
+    });
+  });
+
+  // Step2: 時間スライダー・数値入力
+  document.querySelectorAll('[data-hours-range]').forEach(input => {
+    input.addEventListener('input', () => {
+      const id = input.getAttribute('data-hours-range');
+      state.selectedTasks[id] = Number(input.value);
+      const numInput = document.querySelector(`[data-hours-num="${id}"]`);
+      if(numInput) numInput.value = input.value;
+    });
+  });
+  document.querySelectorAll('[data-hours-num]').forEach(input => {
+    input.addEventListener('input', () => {
+      const id = input.getAttribute('data-hours-num');
+      const v = Math.max(0, Number(input.value) || 0);
+      state.selectedTasks[id] = v;
+      const rangeInput = document.querySelector(`[data-hours-range="${id}"]`);
+      if(rangeInput) rangeInput.value = Math.min(160, v);
+    });
+  });
+}
+
+/* =========================================================
+   設定パネル(管理者向け・面談中は隠す)
+   ========================================================= */
+function renderSettingsPanel(){
+  const wageInput = document.getElementById('cfgWage');
+  wageInput.value = state.hourlyWage;
+
+  const rolesEl = document.getElementById('cfgRoles');
+  rolesEl.innerHTML = Object.keys(CONFIG.roles).map(key => {
+    const r = CONFIG.roles[key];
+    return `
+      <div class="settings-row">
+        <span>${r.name} 月額</span>
+        <input type="number" step="1000" inputmode="numeric" data-role-monthly="${key}" value="${r.monthlyFee}">
+      </div>
+      <div class="settings-row">
+        <span>${r.name} 導入手数料</span>
+        <input type="number" step="10000" inputmode="numeric" data-role-setup="${key}" value="${r.setupFee}">
+      </div>
+    `;
+  }).join('');
+
+  wageInput.addEventListener('input', () => {
+    state.hourlyWage = Number(wageInput.value) || 0;
+    render();
+  });
+  rolesEl.querySelectorAll('[data-role-monthly]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      CONFIG.roles[inp.getAttribute('data-role-monthly')].monthlyFee = Number(inp.value) || 0;
+      render();
+    });
+  });
+  rolesEl.querySelectorAll('[data-role-setup]').forEach(inp => {
+    inp.addEventListener('input', () => {
+      CONFIG.roles[inp.getAttribute('data-role-setup')].setupFee = Number(inp.value) || 0;
+      render();
+    });
+  });
+}
+
+document.getElementById('gearBtn').addEventListener('click', () => {
+  document.getElementById('settingsOverlay').classList.add('open');
+});
+document.getElementById('cfgCloseBtn').addEventListener('click', () => {
+  document.getElementById('settingsOverlay').classList.remove('open');
+});
+
+renderSettingsPanel();
+render();
+</script>
+</body>
+</html>
