@@ -1,0 +1,189 @@
+<!--
+  商談スクリプト1枚 — Nocto AI Department
+  用途: Shinの面談カンペ(内部資料・客には見せない)。画面表示 + A4印刷両対応。
+  数値は全部「仮」。evidence(削減時間の事例)は未裏取り→面談で断定しない。要確認箇所は [要確認] で明示。
+  価格の出典: diagnose/ai-agent-diagnosis.html の CONFIG と一致させてある。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>商談スクリプト | Nocto AI Department（社内カンペ）</title>
+<style>
+  :root{
+    --navy:#14182A; --navy-light:#1D2238; --navy-lighter:#262C48;
+    --cyan:#8FE3FF; --cyan-dim:#4B6E7A;
+    --text:#EAF2F5; --text-dim:#9AA6B8;
+    --ok:#8FFFC1; --warn:#FFD98F; --danger:#FF8F8F;
+    --line:#2C3352;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--navy); color:var(--text);
+    font-family:-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.7;
+  }
+  h1,h2,h3{font-family:"Hiragino Mincho ProN","Hiragino Mincho Pro",serif; font-weight:600; letter-spacing:.03em;}
+  #wrap{max-width:900px; margin:0 auto; padding:28px 26px 80px;}
+
+  header.top{display:flex; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--line); padding-bottom:14px; margin-bottom:22px;}
+  header.top .brand{font-size:20px; letter-spacing:.08em; color:var(--cyan);}
+  header.top .brand small{display:block; font-size:10px; color:var(--text-dim); letter-spacing:.18em;}
+  header.top .meta{font-size:11px; color:var(--text-dim); text-align:right;}
+
+  .tag{display:inline-block; font-size:11px; padding:2px 9px; border-radius:999px; border:1px solid var(--line); color:var(--text-dim); letter-spacing:.05em;}
+  .internal{color:var(--danger); border-color:#5a2f3a;}
+
+  section{background:var(--navy-light); border:1px solid var(--line); border-radius:14px; padding:18px 20px; margin-bottom:16px;}
+  section > h2{font-size:16px; margin:0 0 12px; color:#fff; display:flex; align-items:center; gap:9px;}
+  section > h2 .n{font-family:-apple-system,sans-serif; font-size:12px; color:var(--navy); background:var(--cyan); border-radius:6px; width:22px; height:22px; display:inline-flex; align-items:center; justify-content:center; font-weight:700; flex:none;}
+
+  .say{border-left:3px solid var(--cyan); padding:8px 0 8px 14px; margin:10px 0; color:#fff; font-size:15px;}
+  .say::before{content:"言う "; font-size:10px; color:var(--cyan-dim); letter-spacing:.1em; display:block; margin-bottom:3px;}
+  .note{font-size:13px; color:var(--text-dim); margin:6px 0;}
+  .note b{color:var(--warn); font-weight:600;}
+
+  ul.flow{list-style:none; padding:0; margin:0;}
+  ul.flow li{padding:9px 0; border-bottom:1px dashed var(--line); display:flex; gap:12px; font-size:14px;}
+  ul.flow li:last-child{border-bottom:none;}
+  ul.flow li .t{color:var(--cyan); font-size:12px; flex:none; width:70px; padding-top:2px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px; margin:6px 0;}
+  th,td{border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top;}
+  th{background:var(--navy-lighter); color:var(--cyan); font-weight:600; font-size:12px;}
+  td .warncheck{color:var(--warn);}
+
+  .obj{margin:12px 0; padding-left:14px; border-left:3px solid #5a2f3a;}
+  .obj .q{color:var(--danger); font-size:14px; font-weight:600; margin-bottom:4px;}
+  .obj .q::before{content:"客 "; font-size:10px; color:#7a4a52; letter-spacing:.1em;}
+  .obj .a{color:#fff; font-size:14px;}
+  .obj .a::before{content:"返す "; font-size:10px; color:var(--cyan-dim); letter-spacing:.1em; display:block;}
+
+  .fill{border:1px dashed var(--cyan-dim); border-radius:10px; padding:12px 14px; margin:8px 0; min-height:40px; font-size:13px; color:var(--text-dim);}
+  .fill .lbl{color:var(--cyan); font-size:12px; display:block; margin-bottom:6px;}
+
+  .warnbox{background:#241a1a; border:1px solid #5a2f3a; border-radius:10px; padding:12px 14px; font-size:12.5px; color:var(--warn);}
+  .print-hint{font-size:11px; color:var(--cyan-dim); text-align:center; margin-top:24px;}
+
+  @media print{
+    body{background:#fff; color:#111;}
+    #wrap{max-width:none; padding:0;}
+    section{background:#fff; border:1px solid #ccc; break-inside:avoid; box-shadow:none;}
+    h1,h2,h3,header.top .brand{color:#111;}
+    header.top .brand{color:#111;}
+    section>h2{color:#111;} section>h2 .n{background:#111; color:#fff;}
+    th{background:#eee; color:#111;} th,td{border-color:#bbb;}
+    .say{border-left-color:#111; color:#111;} .say::before{color:#666;}
+    .obj .a{color:#111;} .obj .q{color:#900;}
+    .note{color:#444;} .note b{color:#a06a00;}
+    ul.flow li .t{color:#0a5a72;}
+    .warnbox{background:#fff8f0; color:#7a4a00; border-color:#d0a060;}
+    .fill{border-color:#999; color:#666;}
+    .print-hint{display:none;}
+    .tag{border-color:#bbb; color:#555;} .internal{color:#900;}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+
+  <header class="top">
+    <div class="brand">Nocto AI Department<small>商談スクリプト / TALK TRACK</small></div>
+    <div class="meta">
+      <span class="tag internal">社内カンペ・客に見せない</span><br>
+      面談: 2026/7/9 建築業<br>作成: Nocto, Inc.
+    </div>
+  </header>
+
+  <!-- 背骨 -->
+  <section>
+    <h2><span class="n">0</span>ブレたら戻る背骨（一人で読む）</h2>
+    <div class="note">・メタファーは徹底して<b>「AI社員を雇う」</b>。「ツール」「システム」「導入AI」は口にしない。</div>
+    <div class="note">・ITアレルギーは緩和でなく<b>見える化で突破</b>。「あなたは確認して承認するだけ」を繰り返す。</div>
+    <div class="note">・<b>職人の腕は代替しない。机仕事（内業）だけ消す。</b>ここを外すと反発される。</div>
+    <div class="note">・売り込まない。<b>実演を見せて、客に気づかせる</b>。押しは苦手＝プル型でいく。</div>
+  </section>
+
+  <!-- 3幕構成 -->
+  <section>
+    <h2><span class="n">1</span>面談の型（3幕・目安30〜40分）</h2>
+    <ul class="flow">
+      <li><span class="t">つかみ<br>5分</span><div>今の内業の悩みを喋らせる。「写真整理と見積、夜に会社でやってません？」で刺す。<b>こちらは聞き役</b>。</div></li>
+      <li><span class="t">実演<br>15分</span><div><b>ai-shain-jitsuen.html を画面で流す</b>。写真投入→AIが工種判定・黒板OCR・台帳振り分けを1ステップずつ実況→低確信度だけ「要確認」で正直に出す→タップで承認→年約280h削減の可視化。「これが"事務のジロー"、御社に配属するAI社員です」。</div></li>
+      <li><span class="t">診断<br>10分</span><div><b>ai-agent-diagnosis.html で業務棚卸し</b>。建築総合プリセット→AI社員を自動当て込み→回収月数をその場で試算→A4印刷して渡す。「持ち帰れる紙」を残すのが狙い。</div></li>
+      <li><span class="t">クロージング<br>5分</span><div>価格の出し方（下記2）→補助金（3）→次の一手を握る。<b>その場で契約は迫らない</b>。「まず1体、事務のジローから」を提案。</div></li>
+    </ul>
+  </section>
+
+  <!-- 差別化 -->
+  <section>
+    <h2><span class="n">2</span>差別化の一言 &amp; 価格の出し方</h2>
+    <div class="say">道具を"買って自分で運用"でも、人を"雇って教育"でもない。事務も電話も集客も、<b>設定済みのAI社員として配属して、運用まで私たちが持ちます</b>。社長は確認して承認するだけです。</div>
+    <div class="note"><b>価格は単品を並べない。</b>「AI社員1体いくら」で出す。単体SaaSとバラ比較されると割高に見える（宿題②）→<b>パッケージ内訳を見せて"人一人分の仕事"として並べる</b>。</div>
+    <table>
+      <tr><th>AI社員</th><th>月額<span style="color:var(--text-dim)">[要確認・仮]</span></th><th>初期<span style="color:var(--text-dim)">[要確認・仮]</span></th><th>束ねる内業</th></tr>
+      <tr><td>事務のジロー<br><small style="color:var(--text-dim)">＝面談の入口</small></td><td>3万</td><td>30万</td><td>見積・請求・工事写真の整理・日報</td></tr>
+      <tr><td>接客</td><td>5万</td><td>50万</td><td>電話24h一次対応＋Web問い合わせ＋<b>用件を仕分けて見込み客として引き渡し</b>＋全記録（言った言わない防止）＋月次で取りこぼし報告。＝<b>受付一人分</b>（単体AI電話4千との差はここ）</td></tr>
+      <tr><td>集客</td><td>10万</td><td>100万</td><td>見込み客検知→文面作成→接触→計測</td></tr>
+      <tr><td colspan="4" style="color:var(--text-dim); font-size:12px;">他: 分析5万/初50万・発注3万/初30万・SNS運用8万/初70万。時給換算は2,000円[仮]で試算。</td></tr>
+    </table>
+    <div class="note">出し方の順序：①<b>まず1体</b>（事務のジロー・月3万）で心理ハードルを下げる →②回収月数を診断ツールで見せる →③「増員は後からでいい」で拡張の余地を残す。</div>
+    <div class="say">人を1人雇えば社保込みで月20〜30万。<b>AI社員は月3万から、しかも24時間、辞めません。</b></div>
+  </section>
+
+  <!-- 補助金 -->
+  <section>
+    <h2><span class="n">3</span>補助金の出し方（断定しない）</h2>
+    <div class="warnbox">⚠ 宿題③が未確認：Noctoが登録IT導入支援事業者になれるか／代行型(done-for-you)が補助対象か。<b>確定するまで「戻ります」と言い切らない。</b>条件付きで話す。</div>
+    <div class="say">初期費用は、<b>IT導入補助金などが使えれば</b>実質1/4程度まで下げられる可能性があります。御社が対象になるか、こちらで確認して持ち帰ります。</div>
+    <div class="note">・要件の当たり：年商2,500万↑・IT補助未受給層なら射程内[要確認]。 ・断定せず<b>「確認して持ち帰る」を次アポの理由に使う</b>。</div>
+  </section>
+
+  <!-- 使える数字 -->
+  <section>
+    <h2><span class="n" style="background:var(--ok)">★</span>面談で出せる数字（裏取り済み・2026/7/8時点）</h2>
+    <div class="warnbox">⚠ 原則：<b>他社事例は必ず「◯◯が公表」「実測は初月に」の枕詞とセット。</b>断定しない。一番強いのは自社診断ツールが出す御社の実数。他社数字は"参考"。</div>
+    <table>
+      <tr><th>使える数字</th><th>出所</th><th>言い方</th></tr>
+      <tr><td><b>請求処理を平均約8割削減</b>（中小5社）</td><td>東京都DX推進実証事業（invox・実証参加ベンダー計測）</td><td>「東京都の実証で中小5社が請求処理を平均8割削減。御社では初月に実測します」</td></tr>
+      <tr><td><b>経費精算の工数を1/10</b></td><td>JR九州エンジニアリング（建設・実名／バクラク公表）</td><td>「建設系のJR九州エンジニアリングで経費精算が1/10に。同じ支払まわりの内業です」</td></tr>
+      <tr><td>施工計画書のドラフト作成<b>約85%削減</b></td><td>大成建設 公表・日経報道（2025/11・大手土木）</td><td>「大手では書類のたたき台をAIが作り約85%減。中小で同率は約束しませんが方向性は実証済み」</td></tr>
+    </table>
+    <div class="note"><b class="warncheck">封印した数字（言うな）：</b>「写真整理 年384時間 ※KENTEM調べ」＝虚偽帰属。「支払1週間→1日・36名」「日報15分→3分」＝出所が匿名/自社実績。診断ツールからは削除済み。</div>
+  </section>
+
+  <!-- 想定反論 -->
+  <section>
+    <h2><span class="n">4</span>想定反論と切り返し</h2>
+
+    <div class="obj"><div class="q">うちITダメだから、そういうの使いこなせないよ</div>
+    <div class="a">使いこなさなくていいんです。<b>操作するのはAI社員側で、社長は画面に出た結果を"OK/要確認"で押すだけ</b>。さっきの実演、社長がやったのはタップ承認だけでしたよね。</div></div>
+
+    <div class="obj"><div class="q">AIって間違えるでしょ。現場は誤魔化せないよ</div>
+    <div class="a">その通りです。だから<b>自信がない所はAIが必ず"要確認"で人に聞く設計</b>にしてます。黙って間違えるのが一番怖い。<b>間違いを隠さないのが信頼</b>だと考えてます。</div></div>
+
+    <div class="obj"><div class="q">電話AIとか写真整理アプリ、単品で安いの色々あるよね</div>
+    <div class="a">はい、単品なら月数千円のもあります。ただ<b>それを選んで・繋いで・運用するのは社長の仕事になる</b>。うちは<b>選定も設定も運用も込みで、AI社員一人分としてまとめて持ちます</b>。バラバラの道具と、配属済みの社員の違いです。<span class="note">（宿題②の核心。ここでパッケージ内訳表を見せる）</span></div></div>
+
+    <div class="obj"><div class="q">効果あるって言うけど、その数字ほんと？</div>
+    <div class="a">まず<b>御社の実数</b>で答えます。「さっきの診断で御社の時間を入れて出したのがこの回収月数です」。裏付けが要れば<b>実名・公的の数字</b>を添える：「東京都の実証で中小5社が請求処理を平均8割削減」「JR九州エンジニアリングで経費精算1/10」。<b class="warncheck">出所不明の数字（384時間/36名/15分→3分）は絶対に出さない。</b></div></div>
+
+    <div class="obj"><div class="q">高いなあ</div>
+    <div class="a">人を1人採るコストと比べてください。<b>求人出しても地方は人が採れない</b>。AI社員は採用費ゼロ・月3万・辞めない。しかも初期は補助金で下げられる可能性がある。まず<b>一番効く1体だけ</b>から始めましょう。</div></div>
+  </section>
+
+  <!-- 面談中に埋める -->
+  <section>
+    <h2><span class="n">5</span>面談中に埋める（次アポの弾）</h2>
+    <div class="fill"><span class="lbl">客が一番痛がっていた内業は？（＝最初に配属する1体）</span></div>
+    <div class="fill"><span class="lbl">診断ツールで出た回収月数 / 想定削減時間</span></div>
+    <div class="fill"><span class="lbl">補助金で持ち帰る宿題（対象か確認する項目）</span></div>
+    <div class="fill"><span class="lbl">次アポの日時・約束したこと</span></div>
+  </section>
+
+  <div class="print-hint">Ctrl/⌘+P で A4印刷（1〜2枚）。画面のままカンペとしても可。／ 価格は diagnose/ai-agent-diagnosis.html の CONFIG と同期。</div>
+
+</div>
+</body>
+</html>

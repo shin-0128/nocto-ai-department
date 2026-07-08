@@ -599,11 +599,11 @@ const PRESETS = {
   construction: {
     label: '建築・建設(総合)',
     tasks: [
-      { id:'c1', name:'工事写真の整理・写真台帳づくり',   role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:32, evidence:'現場監督は写真整理だけで年約384時間(月32h)を消費 ※KENTEM調べ' },
-      { id:'c2', name:'見積・積算(拾い出し)',            role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],               defaultHours:20, evidence:'積算を1週間→1〜2日に短縮した事例あり。見積が遅いと受注・粗利に直結' },
-      { id:'c3', name:'日報・報告書・安全書類の作成',      role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                   defaultHours:16, evidence:'音声で喋る→AI清書で1件15分→3分の事例。夜の書類仕事を消す' },
+      { id:'c1', name:'工事写真の整理・写真台帳づくり',   role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:32, evidence:'写真整理は現場監督の代表的な内業。所要は会社差が大きいので御社の実数を入力してください' },
+      { id:'c2', name:'見積・積算(拾い出し)',            role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],               defaultHours:20, evidence:'AIで見積書のデータ化を1週間→1日にした事例あり（ミャク楽・ベンダー公表値）。見積の速さは受注・粗利に直結' },
+      { id:'c3', name:'日報・報告書・安全書類の作成',      role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                   defaultHours:16, evidence:'音声で喋る→AI清書で日報を数分に短縮した報告あり（各支援事業者の公表値）。夜の書類仕事を消す' },
       { id:'c4', name:'電話番・問い合わせの一次対応',      role:'reception',   axis:'集客',     autonomy:['24時間性に価値','人がやると漏れる'],   defaultHours:15, evidence:'現場を止める電話・言った言わないの主因。初回返信8h→1.5hの事例' },
-      { id:'c5', name:'請求・支払い・インボイス処理',      role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],               defaultHours:12, evidence:'AI-OCRで支払伝票処理を1週間→1日にした事例(従業員36名の建設会社)' },
+      { id:'c5', name:'請求・支払い・インボイス処理',      role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],               defaultHours:12, evidence:'AI-OCRで請求処理を自動化。東京都のDX実証で中小5社が平均約8割削減（実証参加ベンダー計測値）。御社は初月に実測' },
       { id:'c6', name:'職人・協力会社の手配(段取り)',      role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                   defaultHours:10 },
       { id:'c7', name:'集客・元請け脱却(直請けの営業)',    role:'acquisition', axis:'集客',     autonomy:['24時間性に価値'],                       defaultHours:12 },
       { id:'c8', name:'施工事例・SNSの発信',             role:'sns',         axis:'集客',     autonomy:['判断がパターン化できる'],               defaultHours:8  },
@@ -612,11 +612,11 @@ const PRESETS = {
   reform: {
     label: 'リフォーム・改修',
     tasks: [
-      { id:'rf1', name:'現地調査メモ→見積・積算',        role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:18, evidence:'見積が遅いと相見積もりで負ける。積算1週間→1〜2日の事例' },
+      { id:'rf1', name:'現地調査メモ→見積・積算',        role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:18, evidence:'見積が遅いと相見積もりで負ける。AIで見積書作成を短縮した事例が出ている（ベンダー公表値）' },
       { id:'rf2', name:'問い合わせ・電話の一次対応(24h)', role:'reception',   axis:'集客',     autonomy:['24時間性に価値','人がやると漏れる'], defaultHours:18, evidence:'初回返信8h→1.5h・概算提示1.8日→0.4日・予約率1.8倍の事例' },
       { id:'rf3', name:'見積書・提案書づくり',           role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:12 },
       { id:'rf4', name:'施工前後の写真・記録の整理',      role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:12 },
-      { id:'rf5', name:'請求・支払い・インボイス処理',    role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:10, evidence:'AI-OCRで支払伝票処理を1週間→1日にした事例' },
+      { id:'rf5', name:'請求・支払い・インボイス処理',    role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:10, evidence:'AI-OCRで請求・支払処理を大幅短縮した事例あり（ベンダー公表値）' },
       { id:'rf6', name:'集客・Web/チラシ反響の対応',      role:'acquisition', axis:'集客',     autonomy:['24時間性に価値'],                    defaultHours:15 },
       { id:'rf7', name:'施工事例・口コミ/SNSの発信',      role:'sns',         axis:'集客',     autonomy:['判断がパターン化できる'],             defaultHours:10, evidence:'リフォームは事例と口コミが受注に直結' },
       { id:'rf8', name:'アフターフォロー・点検案内',      role:'reception',   axis:'集客',     autonomy:['人がやると漏れる'],                 defaultHours:6  },
@@ -637,8 +637,8 @@ const PRESETS = {
   kantoku: {
     label: '現場監督・施工管理',
     tasks: [
-      { id:'kt1', name:'工事写真の整理・写真台帳づくり',   role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:32, evidence:'現場監督は写真整理だけで年約384時間(月32h)を消費 ※KENTEM調べ' },
-      { id:'kt2', name:'日報・施工計画書・報告書',        role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:18, evidence:'施工計画書の作成時間を約85%削減した事例/日報15分→3分' },
+      { id:'kt1', name:'工事写真の整理・写真台帳づくり',   role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:32, evidence:'写真整理は現場監督の代表的な内業。所要は会社差が大きいので御社の実数を入力してください' },
+      { id:'kt2', name:'日報・施工計画書・報告書',        role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:18, evidence:'施工計画書のドラフト作成を約85%削減（大成建設が公表・大手土木の事例／日経報道）。日報も数分化の報告あり' },
       { id:'kt3', name:'安全書類・グリーンファイル',      role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:12, evidence:'定型書類はAIが下書き→人は確認だけ' },
       { id:'kt4', name:'出来形・協議資料の作成',          role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:12 },
       { id:'kt5', name:'職人・協力会社の手配(段取り)',     role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:10 },
@@ -649,8 +649,8 @@ const PRESETS = {
   doboku: {
     label: '土木・外構',
     tasks: [
-      { id:'db1', name:'工事写真・出来形の整理(電子納品)', role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:28, evidence:'公共案件の写真台帳・電子納品は膨大。年384時間級の内業' },
-      { id:'db2', name:'積算・数量の拾い出し',           role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:18, evidence:'積算を1週間→1〜2日に短縮した事例あり' },
+      { id:'db1', name:'工事写真・出来形の整理(電子納品)', role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる','判断がパターン化できる'], defaultHours:28, evidence:'公共案件の写真台帳・電子納品は特に膨大な内業。御社の実数を入力してください' },
+      { id:'db2', name:'積算・数量の拾い出し',           role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:18, evidence:'AIで見積書のデータ化を短縮した事例あり（ベンダー公表値）' },
       { id:'db3', name:'日報・施工管理書類',             role:'clerical',    axis:'業務改善', autonomy:['人がやると漏れる'],                 defaultHours:14 },
       { id:'db4', name:'請求・支払い・インボイス処理',    role:'clerical',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:10 },
       { id:'db5', name:'重機・資材の手配/発注',          role:'ordering',    axis:'業務改善', autonomy:['判断がパターン化できる'],             defaultHours:8  },
