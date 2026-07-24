@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<!--
+  Nocto AI Department — スマホ用PWA（外装リフォーム会社 面談デモ）
+  困りごと: バックオフィス / 採用・雇用 / 会社の説明動画。営業は前面に出さない。
+  完全オフライン動作（Service Worker で precache）。ホーム画面に追加で「アプリ」になる。
+-->
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<title>Nocto AI社員 | 外装リフォームのバックオフィスを丸ごと</title>
+<meta name="description" content="採らない・育てない・辞めない。外装リフォームの事務・採用・説明動画を持つAI社員たち。">
+<meta name="theme-color" content="#14182A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="AI社員">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="./icons/icon-192.png">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div id="shell">
+  <header class="appbar" id="appbar">
+    <button class="back" id="barBack" aria-label="戻る">‹</button>
+    <div class="brand" id="barBrand">NOCTO<small>AI DEPARTMENT</small></div>
+    <div class="barttl hidden" id="barTitle"></div>
+    <div class="spacer"></div>
+    <span class="chip">実演デモ</span>
+  </header>
+
+  <main id="view"><!-- rendered by app.js --></main>
+</div>
+
+<!-- install banner (Android/Chrome + iOS hint) -->
+<div id="installbar">
+  <div class="it"><b>アプリとして追加</b>できます（オフラインでも動く）</div>
+  <button id="installBtn">追加</button>
+  <button class="x" id="installX" aria-label="閉じる">×</button>
+</div>
+
+<!-- iOS install instructions -->
+<div id="iosSheet">
+  <div class="card">
+    <h3>ホーム画面に追加する</h3>
+    <ol>
+      <li>下の<span class="share">⬆️</span>「共有」ボタンを押す</li>
+      <li>「ホーム画面に追加」を選ぶ</li>
+      <li>「追加」を押す → アプリのアイコンが並びます</li>
+    </ol>
+    <button id="iosClose">閉じる</button>
+  </div>
+</div>
+
+<script>
+  // 戻るボタン（appbar）は履歴を戻す
+  document.getElementById('barBack').addEventListener('click', function(){
+    if (location.hash && location.hash !== '#/') { location.hash = '#/'; }
+    else { history.back(); }
+  });
+  // Service Worker 登録（オフライン化）
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('./sw.js').catch(function(){ /* file:// では無効。無視 */ });
+    });
+  }
+</script>
+<script src="./app.js"></script>
+</body>
+</html>
