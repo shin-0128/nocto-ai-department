@@ -840,22 +840,58 @@ const GENBA_STEPS = [
   { ic: '4', lbl: 'Before/After報告書を作成', key: 'rep' },
 ];
 function tile(p, tagged) {
+  const visual = p.url
+    ? `<img src="${p.url}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">`
+    : `<div style="position:absolute;inset:0;background:${KOTEI_STYLE[p.k] || '#333'}"></div>`;
   return `<div class="ph ${tagged ? 'tagged' : ''}" data-id="${p.id}" style="position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1px solid var(--navy-lighter);display:flex;align-items:flex-end;">
-    <div style="position:absolute;inset:0;background:${KOTEI_STYLE[p.k]}"></div>
-    ${tagged ? `<div style="position:relative;width:100%;padding:3px 5px;font-size:9px;background:linear-gradient(0deg,rgba(5,7,15,.9),transparent);z-index:2;"><span style="color:var(--cyan);font-weight:700;">${p.k}</span><br><span style="color:var(--text-dim);font-size:8px;">${p.d}</span></div>` : ''}
+    ${visual}
+    ${tagged ? `<div style="position:relative;width:100%;padding:3px 5px;font-size:9px;background:linear-gradient(0deg,rgba(5,7,15,.92),transparent);z-index:2;"><span style="color:var(--cyan);font-weight:700;">${p.k}</span><br><span style="color:var(--text-dim);font-size:8px;">${p.d}</span></div>` : ''}
   </div>`;
+}
+// サンプルの作業コピー(元配列は不変に保つ)
+function genbaSample() { return GENBA_PHOTOS.map((p) => ({ ...p })); }
+function fmtFileDate(ms) { try { const d = new Date(ms); return (d.getMonth() + 1) + '/' + d.getDate(); } catch (e) { return '—'; } }
+// アップロードされた実写真に、それっぽい工程ラベルを割当てる(オフライン演出。実分類はしない)
+function genbaFromFiles(files) {
+  const list = files.slice(0, 12).map((f, i) => ({ id: i + 1, url: URL.createObjectURL(f), d: fmtFileDate(f.lastModified), p: 'お客様の写真' }));
+  const N = list.length;
+  const mids = ['高圧洗浄', '下地補修', '下塗り', '中塗り・上塗り'];
+  list.forEach((p, i) => {
+    p.k = (i === 0) ? '施工前' : (i === N - 1) ? '完了' : mids[(i - 1) % mids.length];
+    p.conf = 88 + ((i * 3) % 10);
+  });
+  // AIも初見 → 中間から最大3枚を「要確認」に(正直に多めに聞く演出)
+  const middle = list.filter((_, i) => i > 0 && i < N - 1);
+  const needN = Math.min(3, middle.length);
+  for (let j = 0; j < needN; j++) {
+    const p = middle[Math.floor(j * middle.length / needN)];
+    p.need = true; p.conf = 62 + j * 5;
+    const idx = KOTEI_ORDER.indexOf(p.k);
+    const g = KOTEI_ORDER[idx + 1] || KOTEI_ORDER[idx - 1] || p.k;
+    p.guess = g; p.alt = Array.from(new Set([p.k, g]));
+  }
+  return list;
 }
 function renderGenba(root) {
   const e = EMP.genba;
   setBar({ back: true, title: e.name });
-  // reset need-item kind
-  GENBA_PHOTOS.find((p) => p.id === 4).k = '下塗り';
+  let mode = 'sample';
+  let photos = genbaSample();
+  const gkResolved = new Set();
+  const revokeUrls = () => photos.forEach((p) => { if (p.url) { try { URL.revokeObjectURL(p.url); } catch (x) {} } });
+
   root.innerHTML = workerHead(e) + `
     <div class="stage" id="gk0">
       <h2>① 現場の写真を、そのまま投入</h2>
-      <p class="sub">工程順に並べ替えなくてOK。ケンが工程を判定して整理し、お客様向け報告書にします。<br>(デモはサンプル8枚)</p>
+      <p class="sub">工程順に並べ替えなくてOK。ケンが工程を判定して整理し、お客様向け報告書にします。</p>
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;" id="gkPile"></div>
-      <button class="btn btn-primary btn-block mt16" id="gkStart">写真を投入する（8枚）</button>
+      <button class="btn btn-primary btn-block mt16" id="gkStart">サンプル8枚で実演する</button>
+      <div style="text-align:center;color:var(--text-faint);font-size:12px;margin:14px 0 10px;">— または —</div>
+      <label class="btn btn-ghost btn-block" style="display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
+        📷 自分の現場写真でやってみる
+        <input type="file" id="gkFile" accept="image/*" multiple style="display:none;">
+      </label>
+      <p class="footnote" style="margin-top:8px;">スマホなら撮影 or カメラロールから複数選べます。写真は<b style="color:var(--text-dim);">この端末の中だけ</b>で処理され、どこにも送信しません。</p>
     </div>
     <div class="stage hidden" id="gk1">
       <h2>② ケンが整理中 <span style="font-size:12px;color:var(--text-dim);font-family:-apple-system,sans-serif;">— 判定を実況</span></h2>
@@ -864,9 +900,9 @@ function renderGenba(root) {
     </div>
     <div class="stage hidden" id="gk2">
       <h2>③ 工程台帳＋Before/After報告書が完成</h2>
-      <p class="sub">工程ごとに整理し、施工前と完了を並べた報告書を自動生成。1件だけ確認をお願いします。</p>
+      <p class="sub">工程ごとに整理し、施工前と完了を並べた報告書を自動生成しました。</p>
       <div class="review" id="gkReview">
-        <h3>要確認 — 1件</h3>
+        <h3>要確認</h3>
         <p class="rsub">ケンが迷った写真です。正しい工程をタップしてください。</p>
         <div id="gkReviewList"></div>
       </div>
@@ -875,29 +911,47 @@ function renderGenba(root) {
       <div id="gkCta"></div>
     </div>`;
 
-  // 未確認の need 写真は、ユーザーが工程を確定するまで台帳に入れない(「分からない所は隠さない」を体現)
-  const gkResolved = new Set();
-  $('#gkPile').innerHTML = GENBA_PHOTOS.map((p) => tile(p, false)).join('');
+  const renderPile = () => { $('#gkPile').innerHTML = photos.map((p) => tile(p, false)).join(''); };
+  renderPile();
   $('#gkSteps').innerHTML = stepsUI(GENBA_STEPS);
+
+  $('#gkFile').addEventListener('change', (ev) => {
+    const files = Array.from(ev.target.files || []);
+    if (!files.length) return;
+    revokeUrls();
+    photos = genbaFromFiles(files);
+    mode = 'upload';
+    gkResolved.clear();
+    renderPile();
+    $('#gkStart').textContent = `この写真で整理させる（${photos.length}枚）`;
+    $('#gkPile').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
   $('#gkStart').addEventListener('click', () => {
     show('gk0', 'gk1');
-    $('#gkWork').innerHTML = GENBA_PHOTOS.map((p) => tile(p, false)).join('');
+    $('#gkWork').innerHTML = photos.map((p) => tile(p, false)).join('');
+    const N = photos.length;
+    const stepGap = Math.max(90, Math.min(180, Math.round(1400 / Math.max(N, 1))));
     after(250, () => {
-      // reveal tags progressively during 'kind'
-      after(700, () => GENBA_PHOTOS.forEach((p, i) => after(180 * i, () => {
+      after(700, () => photos.forEach((p, i) => after(stepGap * i, () => {
         const t2 = $(`#gkWork .ph[data-id="${p.id}"]`); if (t2) t2.outerHTML = tile(p, true);
       })));
       runSteps($('#gk1'), [
-        ['load', '8枚を読み込み…', 500],
-        ['kind', '施工前／洗浄／下地／塗り／完了 を判定中…', 1600],
-        ['ocr', '黒板の日付・面を読み取り…', 700],
+        ['load', `${N}枚を読み込み…`, 500],
+        ['kind', mode === 'upload' ? 'お客様の写真を1枚ずつ工程判定中…' : '施工前／洗浄／下地／塗り／完了 を判定中…', 1600],
+        ['ocr', mode === 'upload' ? '撮影日・面を読み取り…' : '黒板の日付・面を読み取り…', 700],
         ['rep', '施工前と完了を並べて報告書を作成…', 700],
       ], showGkResult);
     });
   });
 
   function showGkResult() {
-    const needs = GENBA_PHOTOS.filter((p) => p.need);
+    const needs = photos.filter((p) => p.need);
+    $('#gkReview h3').textContent = `要確認 — ${needs.length}件`;
+    $('#gkReview .rsub').textContent = mode === 'upload'
+      ? 'アップした写真はケンも初見です。自信のない所は隠さず、正直に確認へ回します。正しい工程をタップしてください。'
+      : 'ケンが迷った写真です。正しい工程をタップしてください。';
+    $('#gkReview').classList.toggle('hidden', needs.length === 0);
     $('#gkReviewList').innerHTML = needs.map((p) => `
       <div class="review-item" data-id="${p.id}">
         <div class="rq">写真#${p.id}（${p.d}／${p.p}）<br>ケンの予想: <b>${p.guess}</b>…自信${p.conf}%。どっち？</div>
@@ -908,33 +962,40 @@ function renderGenba(root) {
     show('gk1', 'gk2');
     $$('#gkReviewList .opt').forEach((btn) => btn.addEventListener('click', () => {
       const id = Number(btn.dataset.id);
-      GENBA_PHOTOS.find((p) => p.id === id).k = btn.dataset.k;
+      const p = photos.find((x) => x.id === id); if (p) p.k = btn.dataset.k;
       gkResolved.add(id);
       const item = $(`.review-item[data-id="${id}"]`);
       $$('.opt', item).forEach((b) => b.classList.toggle('sel', b === btn));
       item.classList.add('resolved');
       renderLedger();
     }));
-    $('#gkCta').innerHTML = demoCta('毎現場、報告書が勝手に片付く', 'お客様提出も、写真の整理も、夜の事務所仕事から外れます。', 'もう一度、実演を見る');
-    wireDemoCta(root, () => renderGenba(root));
+    const ctaSub = mode === 'upload'
+      ? 'いま御社の写真でこれが動きました。毎現場、報告書が夜の事務所仕事から外れます。'
+      : 'お客様提出も、写真の整理も、夜の事務所仕事から外れます。';
+    $('#gkCta').innerHTML = demoCta('毎現場、報告書が勝手に片付く', ctaSub, 'もう一度、実演を見る');
+    wireDemoCta(root, () => { revokeUrls(); renderGenba(root); });
   }
   function renderLedger() {
     $('#gkLedger').innerHTML = KOTEI_ORDER.map((k) => {
       // 未確認の need 写真は台帳に載せない(確認して初めて振り分けられる)
-      const ps = GENBA_PHOTOS.filter((p) => p.k === k && (!p.need || gkResolved.has(p.id)));
+      const ps = photos.filter((p) => p.k === k && (!p.need || gkResolved.has(p.id)));
       if (!ps.length) return '';
       return `<div class="kv"><span class="k" style="color:var(--cyan);">${k}</span><span style="margin-left:auto;color:var(--text-dim);">${ps.length}枚</span><span style="min-width:20px;text-align:right;color:var(--ok);">✓</span></div>`;
     }).join('');
   }
   function renderReport() {
-    const before = GENBA_PHOTOS.find((p) => p.k === '施工前');
-    const after2 = GENBA_PHOTOS.find((p) => p.k === '完了');
+    const before = photos.find((p) => p.k === '施工前') || photos[0];
+    const after2 = photos.find((p) => p.k === '完了') || photos[photos.length - 1];
+    const frame = (p, label, ls, gradKey) => `<div style="aspect-ratio:4/3;border-radius:9px;position:relative;overflow:hidden;${p && p.url ? '' : `background:${KOTEI_STYLE[gradKey]};`}">${p && p.url ? `<img src="${p.url}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;">` : ''}<span style="position:absolute;top:6px;left:6px;font-size:10px;font-weight:700;${ls};padding:2px 8px;border-radius:6px;">${label}</span></div>`;
+    const body = (mode === 'upload')
+      ? 'お客様の現場写真を、施工前から完了まで工程ごとに整理しました。この形の報告書が、毎現場そのまま提出できます。'
+      : '田中様邸 外壁塗装工事の施工報告です。高圧洗浄から下地補修、シリコン3回塗りまで、工程ごとに写真で記録しました。全工程を予定通り完了しております。';
     $('#gkReport').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-        <div><div style="aspect-ratio:4/3;border-radius:9px;background:${KOTEI_STYLE['施工前']};position:relative;"><span style="position:absolute;top:6px;left:6px;font-size:10px;font-weight:700;color:#fff;background:rgba(5,7,15,.6);padding:2px 8px;border-radius:6px;">BEFORE</span></div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">施工前（${before.d}）</div></div>
-        <div><div style="aspect-ratio:4/3;border-radius:9px;background:${KOTEI_STYLE['完了']};position:relative;"><span style="position:absolute;top:6px;left:6px;font-size:10px;font-weight:700;color:#0B0E19;background:var(--cyan);padding:2px 8px;border-radius:6px;">AFTER</span></div><div style="font-size:11px;color:var(--cyan);margin-top:4px;">完了（${after2.d}）</div></div>
+        <div>${frame(before, 'BEFORE', 'color:#fff;background:rgba(5,7,15,.6)', '施工前')}<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">施工前（${before ? before.d : '—'}）</div></div>
+        <div>${frame(after2, 'AFTER', 'color:#0B0E19;background:var(--cyan)', '完了')}<div style="font-size:11px;color:var(--cyan);margin-top:4px;">完了（${after2 ? after2.d : '—'}）</div></div>
       </div>
-      <p style="font-size:12.5px;color:var(--text);line-height:1.8;">田中様邸 外壁塗装工事の施工報告です。高圧洗浄から下地補修、シリコン3回塗りまで、工程ごとに写真で記録しました。全工程を予定通り完了しております。</p>`;
+      <p style="font-size:12.5px;color:var(--text);line-height:1.8;">${body}</p>`;
   }
 }
 
