@@ -1,7 +1,7 @@
 /* Nocto AI Department — Service Worker
    完全オフライン動作。App Shell を precache し、cache-first で返す。
    デモの性質上「通信ゼロで動く」ことが要件なので network はフォールバックのみ。 */
-const CACHE = 'nocto-aidept-v2';
+const CACHE = 'nocto-aidept-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -26,18 +26,18 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+// stale-while-revalidate: キャッシュを即返しつつ裏で最新を取得して次回に反映。
+// → オフラインでも動き、かつデプロイした更新が次の起動で自動反映される。
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   e.respondWith(
-    caches.match(e.request, { ignoreSearch: true }).then((hit) => {
-      if (hit) return hit;
-      return fetch(e.request)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() => caches.match('./index.html'));
-    })
+    caches.open(CACHE).then((cache) =>
+      cache.match(e.request, { ignoreSearch: true }).then((cached) => {
+        const network = fetch(e.request)
+          .then((res) => { if (res && res.status === 200) cache.put(e.request, res.clone()); return res; })
+          .catch(() => cached || cache.match('./index.html'));
+        return cached || network;
+      })
+    )
   );
 });

@@ -875,6 +875,8 @@ function renderGenba(root) {
       <div id="gkCta"></div>
     </div>`;
 
+  // 未確認の need 写真は、ユーザーが工程を確定するまで台帳に入れない(「分からない所は隠さない」を体現)
+  const gkResolved = new Set();
   $('#gkPile').innerHTML = GENBA_PHOTOS.map((p) => tile(p, false)).join('');
   $('#gkSteps').innerHTML = stepsUI(GENBA_STEPS);
   $('#gkStart').addEventListener('click', () => {
@@ -907,6 +909,7 @@ function renderGenba(root) {
     $$('#gkReviewList .opt').forEach((btn) => btn.addEventListener('click', () => {
       const id = Number(btn.dataset.id);
       GENBA_PHOTOS.find((p) => p.id === id).k = btn.dataset.k;
+      gkResolved.add(id);
       const item = $(`.review-item[data-id="${id}"]`);
       $$('.opt', item).forEach((b) => b.classList.toggle('sel', b === btn));
       item.classList.add('resolved');
@@ -917,7 +920,8 @@ function renderGenba(root) {
   }
   function renderLedger() {
     $('#gkLedger').innerHTML = KOTEI_ORDER.map((k) => {
-      const ps = GENBA_PHOTOS.filter((p) => p.k === k);
+      // 未確認の need 写真は台帳に載せない(確認して初めて振り分けられる)
+      const ps = GENBA_PHOTOS.filter((p) => p.k === k && (!p.need || gkResolved.has(p.id)));
       if (!ps.length) return '';
       return `<div class="kv"><span class="k" style="color:var(--cyan);">${k}</span><span style="margin-left:auto;color:var(--text-dim);">${ps.length}枚</span><span style="min-width:20px;text-align:right;color:var(--ok);">✓</span></div>`;
     }).join('');
