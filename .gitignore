@@ -10,6 +10,12 @@ logs/*.log
 *.pfx
 credentials*.json
 
+# --- 社外秘: 戦略・設計ドキュメント(このrepoはPages用にpublic。絶対に公開しない)
+docs/
+
+# --- 誤クローンのゴミ(手動削除予定)
+nocto-ai-department/
+
 # --- Claude Code (per-machine local overrides)
 .claude/settings.local.json
 
