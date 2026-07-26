@@ -15,6 +15,43 @@ let TIMERS = [];
 const after = (ms, fn) => { const id = setTimeout(fn, ms); TIMERS.push(id); return id; };
 const clearTimers = () => { TIMERS.forEach(clearTimeout); TIMERS = []; };
 
+/* ---------- 共通: 作業ログ(実況)UI ---------- */
+// steps = [{ic,lbl,key}] を受け取り brain ブロックのHTMLを返す
+function stepsUI(steps) {
+  return `<div class="brain">
+    <div class="bh"><span class="dotlive"></span>AIの作業ログ（リアルタイム）</div>
+    <div class="steps">${steps.map((s) => `<div class="stp" data-key="${s.key}"><div class="ic">${s.ic}</div><div class="lbl">${s.lbl}</div><div class="bar"><i></i></div></div>`).join('')}</div>
+    <div class="livemsg"></div>
+  </div>`;
+}
+// seq = [[key, message, durationMs], ...] を scopeEl 内の steps に対して順に実況し、最後に done()
+function runSteps(scopeEl, seq, done) {
+  const setStep = (k, st) => $$('.stp', scopeEl).forEach((el) => { if (el.dataset.key === k) { el.classList.remove('active', 'done'); el.classList.add(st); } });
+  const bar = (k, p) => { const el = $(`.stp[data-key="${k}"] .bar > i`, scopeEl); if (el) el.style.width = p + '%'; };
+  const say = (m) => { const el = $('.livemsg', scopeEl); if (el) el.textContent = m; };
+  let t = 0;
+  seq.forEach(([key, msg, dur]) => {
+    after(t, () => { setStep(key, 'active'); say(msg); });
+    for (let s = 1; s <= 8; s++) after(t + dur * s / 8, () => bar(key, Math.round(s / 8 * 100)));
+    after(t + dur, () => setStep(key, 'done'));
+    t += dur;
+  });
+  after(t + 300, () => { say('完成。'); if (done) done(); });
+}
+// デモ末尾の共通CTA(他の社員へ / やり直し)
+function demoCta(title, sub, replayLabel) {
+  return `<div class="cta mt20" style="margin-left:0;margin-right:0;">
+    <h2>${title}</h2>
+    <p>${sub}</p>
+    <button class="btn btn-primary btn-block" data-cta-home>他の社員を見る</button>
+    <button class="btn btn-ghost btn-block mt12" data-cta-replay>${replayLabel || 'もう一度やる'}</button>
+  </div>`;
+}
+function wireDemoCta(root, replayFn) {
+  const hs = $('[data-cta-home]', root); if (hs) hs.addEventListener('click', () => { location.hash = '#/'; });
+  const rp = $('[data-cta-replay]', root); if (rp) rp.addEventListener('click', replayFn);
+}
+
 /* ---------- AI社員 roster ---------- */
 const SECTIONS = [
   {
@@ -44,24 +81,12 @@ const EMP = {
   seikyu: {
     emoji: '📄', name: '事務のサキ', role: 'AI社員・見積/請求担当',
     one: '「〇〇様 外壁塗装 一式」で見積書も請求書も一発。インボイス番号・振込先も自動。',
-    kind: 'concept',
-    concept: {
-      before: '見積・請求はExcelを毎回コピペ → 金額ミス・出し忘れ・インボイス番号の記載漏れ',
-      after: '客名と工事内容を伝えるだけで、見積書・請求書を自動作成。インボイス番号・振込先・消費税も自動で正しく',
-      sample: ['例:「田中様 外壁塗装 一式 68万」→ 項目分解（洗浄/下地/塗装/諸経費）した見積書と、支払期日入りの請求書をセットで生成。', '経理のジローと連携し、発行した請求書はそのまま入金消込まで追える。'],
-      note: '※経理のジローと同じ書類エンジン。まず経理から入れると請求も自然につながる。'
-    }
+    kind: 'demo', render: renderSeikyu
   },
   genba: {
     emoji: '📸', name: '現場のケン', role: 'AI社員・写真整理担当',
     one: '現場写真をぐちゃっと渡すだけ。工程別に整理し、お客様向けBefore/After報告書に。',
-    kind: 'concept',
-    concept: {
-      before: '夜、事務所で写真をフォルダ分け → 報告書に貼り付け（1現場30〜40分）',
-      after: '写真を投入 → 工程別に自動整理 → お客様提出用のBefore/After報告書が完成。人は確認だけ',
-      sample: ['既存の実演デモ（工事写真の自動仕分け）と同じ仕組みを、外壁塗装の工程（高圧洗浄/下地/下塗り/中塗り/上塗り/完了）に合わせて動かします。'],
-      note: '※この社員は既存デモ diagnose/ai-shain-jitsuen.html がベース。アプリ版への統合は次段。'
-    }
+    kind: 'demo', render: renderGenba
   },
   saiyo: {
     emoji: '🧑‍💼', name: '採用のハナ', role: 'AI社員・採用担当',
@@ -71,13 +96,7 @@ const EMP = {
   ikusei: {
     emoji: '🎓', name: '育成のトモ', role: 'AI社員・教育担当',
     one: '新人が現場で見る手順動画・チェックリストを自動で。「見て覚えろ」を仕組みに変える。',
-    kind: 'concept',
-    concept: {
-      before: 'ベテランが付きっきりで教える → 教え方も人によってバラバラ、離職の一因',
-      after: '作業手順を話すだけで、テロップ入り手順動画とチェックリストに。新人はスマホで予習・復習',
-      sample: ['例:「高圧洗浄の手順」を口頭で入れる → ①養生の確認 ②水圧の設定 ③ケレンの当て方…と手順書＋撮影カット指示に。', '広報のトオルと同じ台本エンジンを教育用途に振り分け。'],
-      note: '※採用のハナ／広報のトオルと連携。まず求人と説明動画から着手が効率的。'
-    }
+    kind: 'demo', render: renderIkusei
   },
   koho: {
     emoji: '🎬', name: '広報のトオル', role: 'AI社員・動画/発信担当',
@@ -87,35 +106,17 @@ const EMP = {
   kuchikomi: {
     emoji: '⭐', name: '評判のミオ', role: 'AI社員・口コミ対応担当',
     one: 'Googleの口コミに、その会社らしい丁寧な返信を下書き。星が付く運用を続ける。',
-    kind: 'concept',
-    concept: {
-      before: '口コミが来ても返信が後回し／定型文でそっけない → 評価が伸びない',
-      after: '口コミの内容を読んで、感謝と具体に触れた返信を下書き。社長は確認して投稿するだけ',
-      sample: ['例:「丁寧に塗ってもらえた」→ 担当職人の名前・工程に触れた返信案を数パターン。低評価には冷静な一次対応案も。'],
-      note: '※MEO（地図検索）対策として営業困りごとが無くても評判維持に効く。'
-    }
+    kind: 'demo', render: renderKuchikomi
   },
   hojokin: {
     emoji: '🏛️', name: '見張り番のゲン', role: 'AI社員・補助金担当',
     one: '外壁・断熱・省エネ改修の補助金を常時ウォッチ。使える案件を逃さず、お客様への提案材料にも。',
-    kind: 'concept',
-    concept: {
-      before: '補助金は種類も期限もバラバラ → 気づいた時には締切、という取りこぼし',
-      after: '国・自治体の外装/断熱系の補助金を監視し、新着・締切間近を通知。お客様提案の後押し材料に',
-      sample: ['例: 住宅省エネ2025系、自治体の外壁・屋根塗装助成、断熱改修補助 等を対象地域で監視。', '※制度は毎年変わるため、実際の要件は必ず一次情報（公募要領）で確認する前提。断定はしない。'],
-      note: '※補助金は「申請代行」ではなく「情報の見張り＋提案材料化」から。要件確認は専門家と。'
-    }
+    kind: 'demo', render: renderHojokin
   },
   denwa: {
     emoji: '📞', name: '電話番のリン', role: 'AI社員・一次対応担当',
     one: '取り込み中でも電話を取りこぼさない。用件を聞いて、折返し予約とメモを残す。',
-    kind: 'concept',
-    concept: {
-      before: '現場に出ていて電話に出られない → 機会損失、留守電は折返し漏れ',
-      after: '一次対応で用件・連絡先・希望時間を聞き取り、社長のスマホに要約メモ＋折返しリスト',
-      sample: ['例:「外壁の見積もりが欲しい」→ 住所・築年数・希望時期をヒアリングしてメモ化。緊急は即転送。'],
-      note: '※営業は困っていないとのことなので優先度は低め。取りこぼし防止の保険として。'
-    }
+    kind: 'demo', render: renderDenwa
   }
 };
 
@@ -684,6 +685,578 @@ const KOHO_SCRIPT = {
     bgm: 'スタイリッシュ・軽快（切り替え強調）',
   },
 };
+
+/* =========================================================
+   実演④ 事務のサキ — 見積書・請求書の自動作成
+   ========================================================= */
+const SEIKYU_MENU = {
+  gaiheki: {
+    label: '外壁塗装', area: 120,
+    items: [
+      { n: '仮設足場', q: '120㎡', u: 800, sub: 96000 },
+      { n: '高圧洗浄', q: '120㎡', u: 250, sub: 30000 },
+      { n: '養生', q: '一式', u: 0, sub: 25000 },
+      { n: '下地補修（ひび・シール）', q: '一式', u: 0, sub: 40000 },
+      { n: '外壁塗装 シリコン3回塗り', q: '120㎡', u: 2300, sub: 276000 },
+      { n: '付帯部塗装（軒天・雨樋等）', q: '一式', u: 0, sub: 45000 },
+      { n: '諸経費', q: '一式', u: 0, sub: 30000 },
+    ],
+  },
+  yane: {
+    label: '屋根塗装', area: 80,
+    items: [
+      { n: '仮設足場', q: '120㎡', u: 800, sub: 96000 },
+      { n: '屋根 高圧洗浄', q: '80㎡', u: 300, sub: 24000 },
+      { n: '下地補修・縁切り', q: '一式', u: 0, sub: 35000 },
+      { n: '屋根塗装 遮熱3回塗り', q: '80㎡', u: 2800, sub: 224000 },
+      { n: '諸経費', q: '一式', u: 0, sub: 25000 },
+    ],
+  },
+  set: {
+    label: '外壁＋屋根セット', area: 200,
+    items: [
+      { n: '仮設足場', q: '120㎡', u: 800, sub: 96000 },
+      { n: '高圧洗浄（外壁・屋根）', q: '200㎡', u: 270, sub: 54000 },
+      { n: '養生', q: '一式', u: 0, sub: 30000 },
+      { n: '下地補修一式', q: '一式', u: 0, sub: 60000 },
+      { n: '外壁塗装 シリコン3回', q: '120㎡', u: 2300, sub: 276000 },
+      { n: '屋根塗装 遮熱3回', q: '80㎡', u: 2800, sub: 224000 },
+      { n: '付帯部塗装', q: '一式', u: 0, sub: 45000 },
+      { n: '諸経費', q: '一式', u: 0, sub: 35000 },
+    ],
+  },
+};
+const SEIKYU_STEPS = [
+  { ic: '1', lbl: '工事を項目に分解', key: 'split' },
+  { ic: '2', lbl: '数量×単価を積算', key: 'calc' },
+  { ic: '3', lbl: '値引き・消費税を計算', key: 'tax' },
+  { ic: '4', lbl: '請求書に変換（インボイス）', key: 'inv' },
+];
+function renderSeikyu(root) {
+  const e = EMP.seikyu;
+  setBar({ back: true, title: e.name });
+  root.innerHTML = workerHead(e) + `
+    <div class="stage" id="se0">
+      <h2>① どの工事の見積り？</h2>
+      <p class="sub">工事メニューを選ぶだけ。サキが項目を分解して見積書・請求書を作ります。<br>(宛先はデモ用に「田中様」固定・戸建て2階想定)</p>
+      <div class="fieldlabel"><span class="q">1</span>工事メニュー</div>
+      <div class="opts" id="seMenu"></div>
+      <button class="btn btn-primary btn-block mt20" id="seStart" disabled>この工事の見積書を作らせる</button>
+    </div>
+    <div class="stage hidden" id="se1">
+      <h2>② サキが作成中 <span style="font-size:12px;color:var(--text-dim);font-family:-apple-system,sans-serif;">— 計算も丸見え</span></h2>
+      <div id="seSteps"></div>
+    </div>
+    <div class="stage hidden" id="se2">
+      <h2>③ 見積書・請求書ができました</h2>
+      <p class="sub">項目・数量・税・インボイス番号まで自動。あとは<b style="color:#fff;">確認して送るだけ</b>。</p>
+      <div id="seOut"></div>
+      <div class="impact mt16">
+        <div class="cell human"><div class="lab">Excelで<br>手作り</div><div class="val">約30<small>分</small></div></div>
+        <div class="cell"><div class="lab">サキの<br>作成</div><div class="val">約5<small>秒</small></div></div>
+        <div class="cell you"><div class="lab">あなたの<br>確認</div><div class="val">約1<small>分</small></div></div>
+      </div>
+      <p class="footnote">金額ミス・出し忘れ・インボイス番号漏れが消えます。※金額・数値は仮の例です。</p>
+      <div id="seCta"></div>
+    </div>`;
+
+  const menuWrap = $('#seMenu'); let menu = null;
+  Object.entries(SEIKYU_MENU).forEach(([id, m]) => {
+    const b = h(`<button class="opt" data-id="${id}">${m.label}</button>`);
+    b.addEventListener('click', () => { menu = id; $$('.opt', menuWrap).forEach((x) => x.classList.toggle('sel', x === b)); $('#seStart').disabled = false; });
+    menuWrap.appendChild(b);
+  });
+  $('#seSteps').innerHTML = stepsUI(SEIKYU_STEPS);
+  $('#seStart').addEventListener('click', () => {
+    show('se0', 'se1');
+    const m = SEIKYU_MENU[menu];
+    after(250, () => runSteps($('#se1'), [
+      ['split', `「${m.label}」を${m.items.length}項目に分解…`, 600],
+      ['calc', '足場・洗浄・塗装…数量×単価を積算中…', 800],
+      ['tax', '端数値引きと消費税10%を計算…', 600],
+      ['inv', 'インボイス番号・振込先・支払期日を差し込み…', 600],
+    ], () => showSeResult(m)));
+  });
+
+  function showSeResult(m) {
+    const subtotal = m.items.reduce((a, x) => a + x.sub, 0);
+    const discount = 12000;
+    const taxable = subtotal - discount;
+    const tax = Math.round(taxable * 0.1);
+    const total = taxable + tax;
+    const rows = m.items.map((x) => `<div class="kv"><span class="k">${x.n}</span><span style="margin-left:auto;">${x.q}${x.u ? ` × ${yen(x.u)}` : ''}</span><span style="min-width:76px;text-align:right;color:#fff;">${yen(x.sub)}</span></div>`).join('');
+    $('#seOut').innerHTML = `
+      <div class="gen">
+        <div class="gt">📄 御見積書<span class="pill">田中様</span></div>
+        <h4>${m.label}工事 御見積</h4>
+        <div class="divider"></div>
+        ${rows}
+        <div class="divider"></div>
+        <div class="kv"><span class="k">小計</span><span style="margin-left:auto;color:#fff;">${yen(subtotal)}</span></div>
+        <div class="kv"><span class="k">出精値引き</span><span style="margin-left:auto;color:var(--warn);">-${yen(discount)}</span></div>
+        <div class="kv"><span class="k">消費税(10%)</span><span style="margin-left:auto;color:#fff;">${yen(tax)}</span></div>
+        <div class="kv" style="font-size:16px;margin-top:6px;"><span class="k" style="color:var(--cyan);">お見積金額</span><span style="margin-left:auto;color:var(--cyan);font-weight:800;">${yen(total)}</span></div>
+      </div>
+      <div class="gen" style="border-color:var(--cyan-dim);">
+        <div class="gt">🧾 御請求書（見積確定で自動変換）</div>
+        <div class="kv"><span class="k">請求金額</span><span style="color:#fff;font-weight:700;">${yen(total)}（税込）</span></div>
+        <div class="kv"><span class="k">支払期日</span><span>翌月末</span></div>
+        <div class="kv"><span class="k">登録番号</span><span>T1234567890123</span></div>
+        <div class="kv"><span class="k">振込先</span><span>◯◯銀行 △△支店 普通 1234567</span></div>
+        <p class="footnote" style="text-align:left;margin-left:0;">※インボイス登録番号・振込先はマスタから自動挿入（デモは仮）。</p>
+      </div>`;
+    $('#seCta').innerHTML = demoCta('経理のジローと繋げば入金消込まで', '発行した請求書の入金チェックも自動で追えます。', '別メニューでやり直す');
+    show('se1', 'se2');
+    wireDemoCta(root, () => renderSeikyu(root));
+  }
+}
+
+/* =========================================================
+   実演⑤ 現場のケン — 施工写真の整理・Before/After報告書
+   ========================================================= */
+const KOTEI_STYLE = {
+  '施工前': 'linear-gradient(160deg,#6b5b4a,#3a3128)',
+  '高圧洗浄': 'linear-gradient(160deg,#4b6b86,#26384a)',
+  '下地補修': 'linear-gradient(160deg,#7a6a52,#40382b)',
+  '下塗り': 'linear-gradient(160deg,#8a7d6b,#4a4335)',
+  '中塗り・上塗り': 'linear-gradient(160deg,#5f7a6a,#33403a)',
+  '完了': 'linear-gradient(160deg,#4a7a86,#26424a)',
+};
+const GENBA_PHOTOS = [
+  { id: 1, k: '施工前', d: '6/3', p: '南面全景', conf: 98 },
+  { id: 2, k: '高圧洗浄', d: '6/4', p: '南面', conf: 96 },
+  { id: 3, k: '下地補修', d: '6/5', p: 'ひび割れ部', conf: 94 },
+  { id: 4, k: '下塗り', d: '6/6', p: '西面', conf: 70, need: true, guess: '中塗り・上塗り', alt: ['下塗り', '中塗り・上塗り'] },
+  { id: 5, k: '中塗り・上塗り', d: '6/7', p: '南面', conf: 93 },
+  { id: 6, k: '中塗り・上塗り', d: '6/8', p: '東面', conf: 91 },
+  { id: 7, k: '完了', d: '6/9', p: '南面全景', conf: 97 },
+  { id: 8, k: '完了', d: '6/9', p: '付帯部', conf: 90 },
+];
+const KOTEI_ORDER = ['施工前', '高圧洗浄', '下地補修', '下塗り', '中塗り・上塗り', '完了'];
+const GENBA_STEPS = [
+  { ic: '1', lbl: '写真を読み込み', key: 'load' },
+  { ic: '2', lbl: '工程を判定', key: 'kind' },
+  { ic: '3', lbl: '日付・面を読み取り', key: 'ocr' },
+  { ic: '4', lbl: 'Before/After報告書を作成', key: 'rep' },
+];
+function tile(p, tagged) {
+  return `<div class="ph ${tagged ? 'tagged' : ''}" data-id="${p.id}" style="position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;border:1px solid var(--navy-lighter);display:flex;align-items:flex-end;">
+    <div style="position:absolute;inset:0;background:${KOTEI_STYLE[p.k]}"></div>
+    ${tagged ? `<div style="position:relative;width:100%;padding:3px 5px;font-size:9px;background:linear-gradient(0deg,rgba(5,7,15,.9),transparent);z-index:2;"><span style="color:var(--cyan);font-weight:700;">${p.k}</span><br><span style="color:var(--text-dim);font-size:8px;">${p.d}</span></div>` : ''}
+  </div>`;
+}
+function renderGenba(root) {
+  const e = EMP.genba;
+  setBar({ back: true, title: e.name });
+  // reset need-item kind
+  GENBA_PHOTOS.find((p) => p.id === 4).k = '下塗り';
+  root.innerHTML = workerHead(e) + `
+    <div class="stage" id="gk0">
+      <h2>① 現場の写真を、そのまま投入</h2>
+      <p class="sub">工程順に並べ替えなくてOK。ケンが工程を判定して整理し、お客様向け報告書にします。<br>(デモはサンプル8枚)</p>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;" id="gkPile"></div>
+      <button class="btn btn-primary btn-block mt16" id="gkStart">写真を投入する（8枚）</button>
+    </div>
+    <div class="stage hidden" id="gk1">
+      <h2>② ケンが整理中 <span style="font-size:12px;color:var(--text-dim);font-family:-apple-system,sans-serif;">— 判定を実況</span></h2>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;" id="gkWork"></div>
+      <div id="gkSteps"></div>
+    </div>
+    <div class="stage hidden" id="gk2">
+      <h2>③ 工程台帳＋Before/After報告書が完成</h2>
+      <p class="sub">工程ごとに整理し、施工前と完了を並べた報告書を自動生成。1件だけ確認をお願いします。</p>
+      <div class="review" id="gkReview">
+        <h3>要確認 — 1件</h3>
+        <p class="rsub">ケンが迷った写真です。正しい工程をタップしてください。</p>
+        <div id="gkReviewList"></div>
+      </div>
+      <div class="gen mt16"><div class="gt">📒 工程台帳（自動整理）</div><div id="gkLedger"></div></div>
+      <div class="gen" style="border-color:var(--cyan-dim);"><div class="gt">📰 お客様向け Before / After 報告書</div><div id="gkReport"></div></div>
+      <div id="gkCta"></div>
+    </div>`;
+
+  $('#gkPile').innerHTML = GENBA_PHOTOS.map((p) => tile(p, false)).join('');
+  $('#gkSteps').innerHTML = stepsUI(GENBA_STEPS);
+  $('#gkStart').addEventListener('click', () => {
+    show('gk0', 'gk1');
+    $('#gkWork').innerHTML = GENBA_PHOTOS.map((p) => tile(p, false)).join('');
+    after(250, () => {
+      // reveal tags progressively during 'kind'
+      after(700, () => GENBA_PHOTOS.forEach((p, i) => after(180 * i, () => {
+        const t2 = $(`#gkWork .ph[data-id="${p.id}"]`); if (t2) t2.outerHTML = tile(p, true);
+      })));
+      runSteps($('#gk1'), [
+        ['load', '8枚を読み込み…', 500],
+        ['kind', '施工前／洗浄／下地／塗り／完了 を判定中…', 1600],
+        ['ocr', '黒板の日付・面を読み取り…', 700],
+        ['rep', '施工前と完了を並べて報告書を作成…', 700],
+      ], showGkResult);
+    });
+  });
+
+  function showGkResult() {
+    const needs = GENBA_PHOTOS.filter((p) => p.need);
+    $('#gkReviewList').innerHTML = needs.map((p) => `
+      <div class="review-item" data-id="${p.id}">
+        <div class="rq">写真#${p.id}（${p.d}／${p.p}）<br>ケンの予想: <b>${p.guess}</b>…自信${p.conf}%。どっち？</div>
+        <div class="opts">${p.alt.map((a) => `<button class="opt" data-id="${p.id}" data-k="${a}">${a}</button>`).join('')}</div>
+      </div>`).join('');
+    renderLedger();
+    renderReport();
+    show('gk1', 'gk2');
+    $$('#gkReviewList .opt').forEach((btn) => btn.addEventListener('click', () => {
+      const id = Number(btn.dataset.id);
+      GENBA_PHOTOS.find((p) => p.id === id).k = btn.dataset.k;
+      const item = $(`.review-item[data-id="${id}"]`);
+      $$('.opt', item).forEach((b) => b.classList.toggle('sel', b === btn));
+      item.classList.add('resolved');
+      renderLedger();
+    }));
+    $('#gkCta').innerHTML = demoCta('毎現場、報告書が勝手に片付く', 'お客様提出も、写真の整理も、夜の事務所仕事から外れます。', 'もう一度、実演を見る');
+    wireDemoCta(root, () => renderGenba(root));
+  }
+  function renderLedger() {
+    $('#gkLedger').innerHTML = KOTEI_ORDER.map((k) => {
+      const ps = GENBA_PHOTOS.filter((p) => p.k === k);
+      if (!ps.length) return '';
+      return `<div class="kv"><span class="k" style="color:var(--cyan);">${k}</span><span style="margin-left:auto;color:var(--text-dim);">${ps.length}枚</span><span style="min-width:20px;text-align:right;color:var(--ok);">✓</span></div>`;
+    }).join('');
+  }
+  function renderReport() {
+    const before = GENBA_PHOTOS.find((p) => p.k === '施工前');
+    const after2 = GENBA_PHOTOS.find((p) => p.k === '完了');
+    $('#gkReport').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+        <div><div style="aspect-ratio:4/3;border-radius:9px;background:${KOTEI_STYLE['施工前']};position:relative;"><span style="position:absolute;top:6px;left:6px;font-size:10px;font-weight:700;color:#fff;background:rgba(5,7,15,.6);padding:2px 8px;border-radius:6px;">BEFORE</span></div><div style="font-size:11px;color:var(--text-dim);margin-top:4px;">施工前（${before.d}）</div></div>
+        <div><div style="aspect-ratio:4/3;border-radius:9px;background:${KOTEI_STYLE['完了']};position:relative;"><span style="position:absolute;top:6px;left:6px;font-size:10px;font-weight:700;color:#0B0E19;background:var(--cyan);padding:2px 8px;border-radius:6px;">AFTER</span></div><div style="font-size:11px;color:var(--cyan);margin-top:4px;">完了（${after2.d}）</div></div>
+      </div>
+      <p style="font-size:12.5px;color:var(--text);line-height:1.8;">田中様邸 外壁塗装工事の施工報告です。高圧洗浄から下地補修、シリコン3回塗りまで、工程ごとに写真で記録しました。全工程を予定通り完了しております。</p>`;
+  }
+}
+
+/* =========================================================
+   実演⑥ 育成のトモ — 手順書・チェックリスト生成
+   ========================================================= */
+const IKUSEI_TASKS = {
+  senjo: {
+    label: '高圧洗浄', oc: '💧',
+    steps: [
+      { t: '周囲・近隣を養生で保護', cut: '養生前後の全景', ng: '飛散で近隣クレーム' },
+      { t: '水圧を素材に合わせて設定（窯業サイディングは中圧）', cut: 'ガン設定の手元', ng: '高圧すぎて表面を傷める' },
+      { t: '上から下へ、汚れ・チョーキングを落とす', cut: '洗浄中の面', ng: '塗り替え後の早期剥離' },
+      { t: '完全乾燥まで24時間おく', cut: '乾燥待ちの記録', ng: '生乾きで塗ると密着不良' },
+    ],
+  },
+  yojo: {
+    label: '養生', oc: '📏',
+    steps: [
+      { t: '窓・サッシ・設備をマスカーで覆う', cut: '養生後の窓周り', ng: '塗料付着で追加清掃' },
+      { t: '地面・植栽・車をブルーシートで保護', cut: '足元の養生', ng: '飛散で弁償トラブル' },
+      { t: '塗る際の見切りラインをテープで直線に', cut: '見切りの拡大', ng: '仕上がりがガタつく' },
+      { t: '剥がすタイミングは塗料が半乾きのうち', cut: '剥がし作業', ng: '乾き切ると塗膜が裂ける' },
+    ],
+  },
+  shitanuri: {
+    label: '下塗り', oc: '🪣',
+    steps: [
+      { t: '素材に合った下塗り材を選ぶ（シーラー/フィラー）', cut: '缶のラベル', ng: '上塗りが密着しない' },
+      { t: '既定の希釈率を守って撹拌', cut: '撹拌の様子', ng: 'ムラ・性能低下' },
+      { t: '吸い込みの激しい面は2回下塗り', cut: '2回塗り箇所', ng: '色ムラ・艶引け' },
+      { t: '規定の乾燥時間を空けて中塗りへ', cut: '乾燥記録', ng: '塗膜不良' },
+    ],
+  },
+};
+const IKUSEI_STEPS = [
+  { ic: '1', lbl: '作業を工程に分解', key: 'split' },
+  { ic: '2', lbl: '順序と勘所を整理', key: 'order' },
+  { ic: '3', lbl: '失敗例・注意点を付与', key: 'ng' },
+  { ic: '4', lbl: 'チェックリスト化', key: 'check' },
+];
+function renderIkusei(root) {
+  const e = EMP.ikusei;
+  setBar({ back: true, title: e.name });
+  root.innerHTML = workerHead(e) + `
+    <div class="stage" id="ik0">
+      <h2>① どの作業を教える？</h2>
+      <p class="sub">作業を選ぶだけで、新人がスマホで見る手順書とチェックリストにします。「見て覚えろ」を仕組みに。</p>
+      <div class="fieldlabel"><span class="q">1</span>作業</div>
+      <div class="opts" id="ikTask"></div>
+      <button class="btn btn-primary btn-block mt20" id="ikStart" disabled>この作業の手順書を作らせる</button>
+    </div>
+    <div class="stage hidden" id="ik1">
+      <h2>② トモが作成中</h2>
+      <div id="ikSteps"></div>
+    </div>
+    <div class="stage hidden" id="ik2">
+      <h2>③ 手順書＋チェックリストができました</h2>
+      <p class="sub">新人はこれを見て予習、現場で確認。撮影カット指示付きなので手順動画にもできます。</p>
+      <div id="ikOut"></div>
+      <p class="footnote">教え方が人によってバラつかない＝新人の早期離職を防ぐ狙い。※内容は一般的な例。実際は自社のやり方に合わせて調整。</p>
+      <div id="ikCta"></div>
+    </div>`;
+  const wrap = $('#ikTask'); let task = null;
+  Object.entries(IKUSEI_TASKS).forEach(([id, t]) => {
+    const b = h(`<button class="opt" data-id="${id}"><span class="oc">${t.oc}</span>${t.label}</button>`);
+    b.addEventListener('click', () => { task = id; $$('.opt', wrap).forEach((x) => x.classList.toggle('sel', x === b)); $('#ikStart').disabled = false; });
+    wrap.appendChild(b);
+  });
+  $('#ikSteps').innerHTML = stepsUI(IKUSEI_STEPS);
+  $('#ikStart').addEventListener('click', () => {
+    show('ik0', 'ik1');
+    const t = IKUSEI_TASKS[task];
+    after(250, () => runSteps($('#ik1'), [
+      ['split', `「${t.label}」を${t.steps.length}ステップに分解…`, 600],
+      ['order', '順序と、ベテランが見てる勘所を言語化…', 800],
+      ['ng', 'よくある失敗例を各ステップに紐付け…', 700],
+      ['check', '現場で使うチェックリストに変換…', 500],
+    ], () => showIkResult(t)));
+  });
+  function showIkResult(t) {
+    const steps = t.steps.map((s, i) => `
+      <div class="scene">
+        <div class="frame">${i + 1}<span class="cut">STEP</span></div>
+        <div class="sbody">
+          <div class="cap">${s.t}</div>
+          <div class="narr">🎥 撮影: ${s.cut}</div>
+          <div class="telop" style="color:var(--danger);">⚠ 失敗例: ${s.ng}</div>
+        </div>
+      </div>`).join('');
+    const checks = t.steps.map((s) => `<label style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--navy-lighter);font-size:13px;color:var(--text);"><input type="checkbox" style="width:20px;height:20px;accent-color:var(--cyan);">${s.t}</label>`).join('');
+    $('#ikOut').innerHTML = `
+      <div class="gen"><div class="gt">📖 手順書（撮影カット付き）<span class="pill">${t.label}</span></div>${steps}</div>
+      <div class="gen"><div class="gt">✅ 現場チェックリスト</div>${checks}</div>`;
+    $('#ikCta').innerHTML = demoCta('新人が「見て覚える」に頼らない', '手順が形に残れば、教える側の時間も、辞める理由も減ります。', '別の作業でやり直す');
+    show('ik1', 'ik2');
+    wireDemoCta(root, () => renderIkusei(root));
+  }
+}
+
+/* =========================================================
+   実演⑦ 評判のミオ — Google口コミの返信下書き
+   ========================================================= */
+const KUCHIKOMI_SAMPLES = {
+  good: {
+    label: '高評価の口コミ', star: '★★★★★',
+    text: '外壁の色あせが気になって依頼しました。職人さんが毎日どこまで進んだか写真で報告してくれて、仕上がりも新築みたいで大満足です。近所にも勧めたいです。',
+  },
+  mid: {
+    label: 'ちょい辛口の口コミ', star: '★★★☆☆',
+    text: '仕上がりは良かったのですが、作業中の車の停め方が少し気になりました。工事自体は丁寧だったと思います。',
+  },
+  bad: {
+    label: '低評価の口コミ', star: '★★☆☆☆',
+    text: '見積もりより追加費用がかかると言われ、説明が後出しに感じました。工事の質は悪くないですが、その点だけ残念です。',
+  },
+};
+const KUCHIKOMI_STEPS = [
+  { ic: '1', lbl: '口コミの意図を読む', key: 'read' },
+  { ic: '2', lbl: '触れるべき事実を抽出', key: 'fact' },
+  { ic: '3', lbl: '会社のトーンで返信', key: 'tone' },
+  { ic: '4', lbl: '角が立たない表現に調整', key: 'soft' },
+];
+function renderKuchikomi(root) {
+  const e = EMP.kuchikomi;
+  setBar({ back: true, title: e.name });
+  root.innerHTML = workerHead(e) + `
+    <div class="stage" id="kk0">
+      <h2>① どの口コミに返信する？</h2>
+      <p class="sub">口コミを選ぶだけ。ミオが会社らしい返信を下書きします。低評価も冷静に一次対応。</p>
+      <div class="opts" id="kkPick" style="flex-direction:column;"></div>
+      <button class="btn btn-primary btn-block mt20" id="kkStart" disabled>この口コミに返信を書かせる</button>
+    </div>
+    <div class="stage hidden" id="kk1">
+      <h2>② ミオが下書き中</h2>
+      <div id="kkSteps"></div>
+    </div>
+    <div class="stage hidden" id="kk2">
+      <h2>③ 返信の下書きができました</h2>
+      <p class="sub">社長は<b style="color:#fff;">確認して投稿するだけ</b>。返信の後回しが無くなり、評価が育ちます。</p>
+      <div id="kkOut"></div>
+      <p class="footnote">口コミへの丁寧な返信は地図検索(MEO)にも効きます。※返信文はデモ生成の例。</p>
+      <div id="kkCta"></div>
+    </div>`;
+  const wrap = $('#kkPick'); let pick = null;
+  Object.entries(KUCHIKOMI_SAMPLES).forEach(([id, s]) => {
+    const b = h(`<button class="opt" data-id="${id}" style="align-items:flex-start;text-align:left;width:100%;flex-direction:column;gap:5px;"><span style="color:var(--gold);font-size:12px;">${s.star} <span style="color:var(--text-dim);">${s.label}</span></span><span style="font-size:12px;color:var(--text-dim);line-height:1.6;font-weight:400;">${s.text}</span></button>`);
+    b.addEventListener('click', () => { pick = id; $$('.opt', wrap).forEach((x) => x.classList.toggle('sel', x === b)); $('#kkStart').disabled = false; });
+    wrap.appendChild(b);
+  });
+  $('#kkSteps').innerHTML = stepsUI(KUCHIKOMI_STEPS);
+  $('#kkStart').addEventListener('click', () => {
+    show('kk0', 'kk1');
+    const s = KUCHIKOMI_SAMPLES[pick];
+    after(250, () => runSteps($('#kk1'), [
+      ['read', `${s.star} の口コミ。感謝か、不満か、意図を読む…`, 600],
+      ['fact', '触れるべき具体（工程・担当）を抽出…', 700],
+      ['tone', '丁寧で人間味のあるトーンで執筆…', 700],
+      ['soft', '言い訳せず、角の立たない表現に調整…', 500],
+    ], () => showKkResult(pick)));
+  });
+  function showKkResult(id) {
+    const replies = {
+      good: [
+        { t: '丁寧版', body: 'この度は嬉しいお言葉をありがとうございます。毎日の進捗報告にご満足いただけて、担当した職人一同とても励みになります。外壁は年数が経つとまた気になる部分も出てまいりますので、その際もお気軽にご相談ください。ご近所へのご紹介まで、心より感謝申し上げます。' },
+        { t: '簡潔版', body: '嬉しいお言葉をありがとうございます。仕上がりにご満足いただけて何よりです。またお困りの際はいつでもご相談ください。' },
+      ],
+      mid: [
+        { t: '丁寧版', body: 'この度はご依頼、また率直なご感想をありがとうございます。仕上がりにご満足いただけた一方、作業車の駐車でご不便をおかけした点、申し訳ございませんでした。今後は近隣・お客様への駐車配慮を徹底してまいります。貴重なご指摘に感謝いたします。' },
+      ],
+      bad: [
+        { t: '冷静な一次対応版', body: 'この度はご不快な思いをおかけし申し訳ございません。追加費用のご説明が後手に回ったとのこと、真摯に受け止めます。見積時点での説明の分かりやすさを改善してまいります。差し支えなければ、経緯を確認したく一度ご連絡をいただけますと幸いです。' },
+      ],
+    };
+    const s = KUCHIKOMI_SAMPLES[id];
+    $('#kkOut').innerHTML = `
+      <div class="gen"><div class="gt">💬 元の口コミ</div><p style="color:var(--text);">${s.star} ${s.text}</p></div>
+      ${replies[id].map((r) => `<div class="gen" style="border-color:var(--cyan-dim);"><div class="gt">✍️ 返信案（${r.t}）</div><div class="body-copy">${r.body}</div></div>`).join('')}`;
+    $('#kkCta').innerHTML = demoCta('星が付く運用を、続けられる', '返信が溜まらない。評価が育つ。営業に困っていなくても効きます。', '別の口コミでやり直す');
+    show('kk1', 'kk2');
+    wireDemoCta(root, () => renderKuchikomi(root));
+  }
+}
+
+/* =========================================================
+   実演⑧ 見張り番のゲン — 補助金の監視
+   ========================================================= */
+const HOJOKIN_STEPS = [
+  { ic: '1', lbl: '国・自治体の制度を巡回', key: 'crawl' },
+  { ic: '2', lbl: '外装・断熱に該当を抽出', key: 'filter' },
+  { ic: '3', lbl: '上限・締切を整理', key: 'org' },
+  { ic: '4', lbl: '締切間近を通知', key: 'alert' },
+];
+const HOJOKIN_HITS = [
+  { name: '住宅省エネ関連（断熱改修）', target: '外壁・屋根の断熱塗装／断熱改修', cap: '上限 数十万円規模', due: '通年（予算上限に達し次第終了）', state: 'watch', note: '予算消化が早い年がある。動くなら早めに。' },
+  { name: '自治体の外壁・屋根塗装 助成', target: '対象地域の戸建て外壁・屋根塗装', cap: '工事費の一部（例:10〜20%）', due: '締切間近（残り目安あり）', state: 'soon', note: '地域限定・年度予算制。要項の対象要件を必ず確認。' },
+  { name: '省エネリフォーム系 補助', target: '遮熱・断熱を伴う改修', cap: '要項による', due: '公募中', state: 'watch', note: '遮熱塗装が対象になる場合あり。仕様条件に注意。' },
+];
+function renderHojokin(root) {
+  const e = EMP.hojokin;
+  setBar({ back: true, title: e.name });
+  root.innerHTML = workerHead(e) + `
+    <div class="stage" id="hj0">
+      <h2>① 補助金の監視を始める</h2>
+      <p class="sub">外壁・断熱・省エネ系の補助金は種類も締切もバラバラ。ゲンが常時見張って、使える案件と締切間近を教えます。</p>
+      <div class="fieldlabel"><span class="q">1</span>対象エリア（デモは例）</div>
+      <div class="opts" id="hjArea"></div>
+      <button class="btn btn-primary btn-block mt20" id="hjStart" disabled>このエリアで監視を回す</button>
+    </div>
+    <div class="stage hidden" id="hj1">
+      <h2>② ゲンが巡回中</h2>
+      <div id="hjSteps"></div>
+    </div>
+    <div class="stage hidden" id="hj2">
+      <h2>③ 使えそうな補助金が見つかりました</h2>
+      <p class="sub">お客様提案の後押し材料にもなります。ただし<b style="color:var(--warn);">制度は毎年変わります</b>。実際の可否は必ず一次情報で確認を。</p>
+      <div id="hjOut"></div>
+      <div class="review" style="background:rgba(255,143,143,.06);border-color:rgba(255,143,143,.35);">
+        <h3 style="color:var(--danger);">重要 — 断定はしません</h3>
+        <p class="rsub" style="color:var(--text-dim);">補助金は年度・地域・仕様で要件が細かく変わります。ゲンは「候補の発見と締切の見張り」まで。申請可否・要件は公募要領や自治体窓口・専門家で必ず確認してください。</p>
+      </div>
+      <div id="hjCta"></div>
+    </div>`;
+  const areas = ['東京都◯◯市', '神奈川県◯◯市', '埼玉県◯◯市'];
+  const wrap = $('#hjArea'); let area = null;
+  areas.forEach((a) => {
+    const b = h(`<button class="opt" data-a="${a}">${a}</button>`);
+    b.addEventListener('click', () => { area = a; $$('.opt', wrap).forEach((x) => x.classList.toggle('sel', x === b)); $('#hjStart').disabled = false; });
+    wrap.appendChild(b);
+  });
+  $('#hjSteps').innerHTML = stepsUI(HOJOKIN_STEPS);
+  $('#hjStart').addEventListener('click', () => {
+    show('hj0', 'hj1');
+    after(250, () => runSteps($('#hj1'), [
+      ['crawl', `${area} と国の制度ページを巡回…`, 800],
+      ['filter', '外壁・屋根・断熱・遮熱の該当を抽出…', 700],
+      ['org', '対象工事・上限・締切を表に整理…', 600],
+      ['alert', '締切間近をピックアップ…', 500],
+    ], showHjResult));
+  });
+  function showHjResult() {
+    $('#hjOut').innerHTML = HOJOKIN_HITS.map((x) => {
+      const badge = x.state === 'soon' ? '<span class="dkind lo">締切間近</span>' : '<span class="dkind hi">監視中</span>';
+      return `<div class="gen"><div class="gt">🏛️ ${x.name} ${badge}</div>
+        <div class="kv"><span class="k">対象工事</span><span>${x.target}</span></div>
+        <div class="kv"><span class="k">補助上限</span><span>${x.cap}</span></div>
+        <div class="kv"><span class="k">締切</span><span style="color:${x.state === 'soon' ? 'var(--warn)' : 'var(--text)'};">${x.due}</span></div>
+        <p style="font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.7;">💡 ${x.note}</p></div>`;
+    }).join('') + `<div class="gen" style="border-color:var(--cyan-dim);"><div class="gt">🗣 お客様提案メモ（自動）</div><p style="color:var(--text);">「今なら断熱・省エネ系の補助が使える可能性があります。対象になるか一緒に確認しましょう」— 見積提案に一言添えるだけで背中を押せます。</p></div>`;
+    $('#hjCta').innerHTML = demoCta('締切の取りこぼしをゼロに', '補助金は「知ってたら使えた」の連続。見張りを任せれば逃しません。', '別エリアでやり直す');
+    show('hj1', 'hj2');
+    wireDemoCta(root, () => renderHojokin(root));
+  }
+}
+
+/* =========================================================
+   実演⑨ 電話番のリン — 電話の一次対応
+   ========================================================= */
+const DENWA_STEPS = [
+  { ic: '1', lbl: '用件を聞き取り', key: 'listen' },
+  { ic: '2', lbl: '住所・連絡先を確認', key: 'contact' },
+  { ic: '3', lbl: '希望日時をヒアリング', key: 'when' },
+  { ic: '4', lbl: '緊急度を判定→社長へ通知', key: 'notify' },
+];
+const DENWA_CONV = [
+  { who: 'リン', t: 'お電話ありがとうございます、◯◯塗装です。' },
+  { who: 'お客様', t: '外壁の見積もりをお願いしたくて。' },
+  { who: 'リン', t: 'ありがとうございます。お住まいのご住所と、築年数はお分かりになりますか？' },
+  { who: 'お客様', t: '◯◯市△△町の戸建てで、築15年くらいです。' },
+  { who: 'リン', t: '承知しました。ご訪問でのお見積り、来週で言うといつ頃がご都合よろしいですか？' },
+  { who: 'お客様', t: '平日の午前中が助かります。' },
+  { who: 'リン', t: 'かしこまりました。担当より折り返しご連絡いたします。お名前を伺えますか？' },
+  { who: 'お客様', t: '田中です。' },
+];
+function renderDenwa(root) {
+  const e = EMP.denwa;
+  setBar({ back: true, title: e.name });
+  root.innerHTML = workerHead(e) + `
+    <div class="stage" id="dn0">
+      <h2>① 現場に出ていて、電話が鳴った</h2>
+      <p class="sub">取り込み中でも取りこぼさない。リンが一次対応で用件を聞き取り、社長のスマホにメモを残します。</p>
+      <button class="btn btn-primary btn-block mt16" id="dnStart">📞 電話がかかってきた（実演）</button>
+    </div>
+    <div class="stage hidden" id="dn1">
+      <h2>② リンが応対中 <span style="font-size:12px;color:var(--text-dim);font-family:-apple-system,sans-serif;">— 会話も丸見え</span></h2>
+      <div class="gen"><div class="gt">☎️ 通話（リアルタイム）</div><div id="dnConv" style="display:flex;flex-direction:column;gap:8px;"></div></div>
+      <div id="dnSteps" class="mt16"></div>
+    </div>
+    <div class="stage hidden" id="dn2">
+      <h2>③ 聞き取りメモ＋折返しリストが完成</h2>
+      <p class="sub">社長は手が空いたときに<b style="color:#fff;">これを見て折り返すだけ</b>。取りこぼしと聞き漏れが消えます。</p>
+      <div id="dnOut"></div>
+      <p class="footnote">緊急（水漏れ等）は即転送、通常は折返しリストへ。※デモの会話は固定。</p>
+      <div id="dnCta"></div>
+    </div>`;
+  $('#dnSteps').innerHTML = stepsUI(DENWA_STEPS);
+  $('#dnStart').addEventListener('click', () => {
+    show('dn0', 'dn1');
+    const conv = $('#dnConv');
+    DENWA_CONV.forEach((line, i) => after(700 * i + 300, () => {
+      const me = line.who === 'リン';
+      conv.appendChild(h(`<div style="align-self:${me ? 'flex-start' : 'flex-end'};max-width:82%;background:${me ? 'var(--navy-lighter)' : '#232B4A'};border:1px solid ${me ? 'var(--navy-lighter)' : 'var(--cyan-dim)'};border-radius:12px;padding:8px 11px;font-size:12.5px;color:${me ? 'var(--text)' : 'var(--cyan)'};line-height:1.6;"><b style="font-size:10px;color:var(--text-faint);">${line.who}</b><br>${line.t}</div>`));
+      conv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }));
+    after(700 * DENWA_CONV.length + 400, () => runSteps($('#dn1'), [
+      ['listen', '用件:「外壁の見積り希望」と認識…', 500],
+      ['contact', '住所・築年数・氏名を記録…', 600],
+      ['when', '希望:「来週 平日午前」を確保…', 500],
+      ['notify', '緊急度=通常。社長へメモを送信…', 500],
+    ], showDnResult));
+  });
+  function showDnResult() {
+    $('#dnOut').innerHTML = `
+      <div class="gen"><div class="gt">📝 聞き取りメモ<span class="pill">自動作成</span></div>
+        <div class="kv"><span class="k">お名前</span><span>田中 様</span></div>
+        <div class="kv"><span class="k">用件</span><span>外壁塗装の見積り希望</span></div>
+        <div class="kv"><span class="k">物件</span><span>◯◯市△△町・戸建て・築15年</span></div>
+        <div class="kv"><span class="k">希望日時</span><span>来週 平日の午前</span></div>
+        <div class="kv"><span class="k">緊急度</span><span style="color:var(--ok);">通常（折返しでOK）</span></div>
+      </div>
+      <div class="gen" style="border-color:var(--cyan-dim);"><div class="gt">🔔 社長への通知</div><p style="color:var(--text);">「見積り依頼1件。田中様（◯◯市・築15年・外壁）。来週平日午前ご希望。折返しリストに追加しました。」</p></div>`;
+    $('#dnCta').innerHTML = demoCta('“出られなかった”で失注しない', '営業に困っていなくても、取りこぼしは純粋な損。保険として効きます。', 'もう一度、実演を見る');
+    show('dn1', 'dn2');
+    wireDemoCta(root, () => renderDenwa(root));
+  }
+}
 
 /* =========================================================
    ステージ遷移 / ルーター
