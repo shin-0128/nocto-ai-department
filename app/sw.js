@@ -1,12 +1,15 @@
 /* Nocto AI Department — Service Worker
    完全オフライン動作。App Shell を precache し、cache-first で返す。
    デモの性質上「通信ゼロで動く」ことが要件なので network はフォールバックのみ。 */
-const CACHE = 'nocto-aidept-v4';
+const CACHE = 'nocto-aidept-v5';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './quote.js',
+  './data/tanka.js',
+  './data/minixlsx.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',

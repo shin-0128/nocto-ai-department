@@ -79,8 +79,8 @@ const EMP = {
     kind: 'demo', render: renderKeiri
   },
   seikyu: {
-    emoji: '📄', name: '事務のサキ', role: 'AI社員・見積/請求担当',
-    one: '「〇〇様 外壁塗装 一式」で見積書も請求書も一発。インボイス番号・振込先も自動。',
+    emoji: '📄', name: '事務のサキ', role: 'AI社員・見積担当',
+    one: '工事条件を入れると数十秒で見積書。単価は①②③選択・過去見積(Excel)取込・直接入力から。★実際に動きます。',
     kind: 'demo', render: renderSeikyu
   },
   genba: {
@@ -735,80 +735,7 @@ const SEIKYU_STEPS = [
 function renderSeikyu(root) {
   const e = EMP.seikyu;
   setBar({ back: true, title: e.name });
-  root.innerHTML = workerHead(e) + `
-    <div class="stage" id="se0">
-      <h2>① どの工事の見積り？</h2>
-      <p class="sub">工事メニューを選ぶだけ。サキが項目を分解して見積書・請求書を作ります。<br>(宛先はデモ用に「田中様」固定・戸建て2階想定)</p>
-      <div class="fieldlabel"><span class="q">1</span>工事メニュー</div>
-      <div class="opts" id="seMenu"></div>
-      <button class="btn btn-primary btn-block mt20" id="seStart" disabled>この工事の見積書を作らせる</button>
-    </div>
-    <div class="stage hidden" id="se1">
-      <h2>② サキが作成中 <span style="font-size:12px;color:var(--text-dim);font-family:-apple-system,sans-serif;">— 計算も丸見え</span></h2>
-      <div id="seSteps"></div>
-    </div>
-    <div class="stage hidden" id="se2">
-      <h2>③ 見積書・請求書ができました</h2>
-      <p class="sub">項目・数量・税・インボイス番号まで自動。あとは<b style="color:#fff;">確認して送るだけ</b>。</p>
-      <div id="seOut"></div>
-      <div class="impact mt16">
-        <div class="cell human"><div class="lab">Excelで<br>手作り</div><div class="val">約30<small>分</small></div></div>
-        <div class="cell"><div class="lab">サキの<br>作成</div><div class="val">約5<small>秒</small></div></div>
-        <div class="cell you"><div class="lab">あなたの<br>確認</div><div class="val">約1<small>分</small></div></div>
-      </div>
-      <p class="footnote">金額ミス・出し忘れ・インボイス番号漏れが消えます。※金額・数値は仮の例です。</p>
-      <div id="seCta"></div>
-    </div>`;
-
-  const menuWrap = $('#seMenu'); let menu = null;
-  Object.entries(SEIKYU_MENU).forEach(([id, m]) => {
-    const b = h(`<button class="opt" data-id="${id}">${m.label}</button>`);
-    b.addEventListener('click', () => { menu = id; $$('.opt', menuWrap).forEach((x) => x.classList.toggle('sel', x === b)); $('#seStart').disabled = false; });
-    menuWrap.appendChild(b);
-  });
-  $('#seSteps').innerHTML = stepsUI(SEIKYU_STEPS);
-  $('#seStart').addEventListener('click', () => {
-    show('se0', 'se1');
-    const m = SEIKYU_MENU[menu];
-    after(250, () => runSteps($('#se1'), [
-      ['split', `「${m.label}」を${m.items.length}項目に分解…`, 600],
-      ['calc', '足場・洗浄・塗装…数量×単価を積算中…', 800],
-      ['tax', '端数値引きと消費税10%を計算…', 600],
-      ['inv', 'インボイス番号・振込先・支払期日を差し込み…', 600],
-    ], () => showSeResult(m)));
-  });
-
-  function showSeResult(m) {
-    const subtotal = m.items.reduce((a, x) => a + x.sub, 0);
-    const discount = 12000;
-    const taxable = subtotal - discount;
-    const tax = Math.round(taxable * 0.1);
-    const total = taxable + tax;
-    const rows = m.items.map((x) => `<div class="kv"><span class="k">${x.n}</span><span style="margin-left:auto;">${x.q}${x.u ? ` × ${yen(x.u)}` : ''}</span><span style="min-width:76px;text-align:right;color:#fff;">${yen(x.sub)}</span></div>`).join('');
-    $('#seOut').innerHTML = `
-      <div class="gen">
-        <div class="gt">📄 御見積書<span class="pill">田中様</span></div>
-        <h4>${m.label}工事 御見積</h4>
-        <div class="divider"></div>
-        ${rows}
-        <div class="divider"></div>
-        <div class="kv"><span class="k">小計</span><span style="margin-left:auto;color:#fff;">${yen(subtotal)}</span></div>
-        <div class="kv"><span class="k">出精値引き</span><span style="margin-left:auto;color:var(--warn);">-${yen(discount)}</span></div>
-        <div class="kv"><span class="k">消費税(10%)</span><span style="margin-left:auto;color:#fff;">${yen(tax)}</span></div>
-        <div class="kv" style="font-size:16px;margin-top:6px;"><span class="k" style="color:var(--cyan);">お見積金額</span><span style="margin-left:auto;color:var(--cyan);font-weight:800;">${yen(total)}</span></div>
-      </div>
-      <div class="gen" style="border-color:var(--cyan-dim);">
-        <div class="gt">🧾 御請求書（見積確定で自動変換）</div>
-        <div class="kv"><span class="k">請求金額</span><span style="color:#fff;font-weight:700;">${yen(total)}（税込）</span></div>
-        <div class="kv"><span class="k">支払期日</span><span>翌月末</span></div>
-        <div class="kv"><span class="k">登録番号</span><span>T1234567890123</span></div>
-        <div class="kv"><span class="k">振込先</span><span>◯◯銀行 △△支店 普通 1234567</span></div>
-        <p class="footnote" style="text-align:left;margin-left:0;">※インボイス登録番号・振込先はマスタから自動挿入（デモは仮）。</p>
-      </div>`;
-    $('#seCta').innerHTML = demoCta('経理のジローと繋げば入金消込まで', '発行した請求書の入金チェックも自動で追えます。', '別メニューでやり直す');
-    show('se1', 'se2');
-    wireDemoCta(root, () => renderSeikyu(root));
-  }
+  QuoteTool.mount(root); // 実見積エンジン(quote.js)をマウント
 }
 
 /* =========================================================
@@ -1341,6 +1268,7 @@ function setBar({ back, title }) {
 
 function router() {
   clearTimers();
+  if (window.QuoteTool) QuoteTool.cleanup(); // 見積エンジンのタイマーも止める
   const root = $('#view');
   const hash = location.hash || '#/';
   const m = hash.match(/^#\/emp\/(\w+)/);
